@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs";
-
+import { cookies } from 'next/headers';
+import { verifyAuth } from '@/lib/auth';
 import prismadb from "@/lib/prismadb";
 
 export async function GET(
@@ -30,10 +30,15 @@ export async function DELETE(
   { params }: { params: { billboardId: string, storeId: string } }
 ) {
   try {
-    const { userId } = auth();
+    const token = cookies().get('token')?.value;
+    
+    if (!token) {
+      return new NextResponse("Unauthorized", { status: 403 });
+    }
 
-    if (!userId) {
-      return new NextResponse("Unauthenticated", { status: 403 });
+    const session = await verifyAuth(token);
+    if (!session?.user) {
+      return new NextResponse("Unauthorized", { status: 403 });
     }
 
     if (!params.billboardId) {
@@ -43,7 +48,7 @@ export async function DELETE(
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId,
+        userId: session.user.id,
       }
     });
 
@@ -69,16 +74,20 @@ export async function PATCH(
   req: Request,
   { params }: { params: { billboardId: string, storeId: string } }
 ) {
-  try {   
-    const { userId } = auth();
+  try {
+    const token = cookies().get('token')?.value;
+    
+    if (!token) {
+      return new NextResponse("Unauthorized", { status: 403 });
+    }
+
+    const session = await verifyAuth(token);
+    if (!session?.user) {
+      return new NextResponse("Unauthorized", { status: 403 });
+    }
 
     const body = await req.json();
-    
     const { label, imageUrl } = body;
-    
-    if (!userId) {
-      return new NextResponse("Unauthenticated", { status: 403 });
-    }
 
     if (!label) {
       return new NextResponse("Label is required", { status: 400 });
@@ -95,7 +104,7 @@ export async function PATCH(
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId,
+        userId: session.user.id,
       }
     });
 

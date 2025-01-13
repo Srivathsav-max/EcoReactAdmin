@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
-import { auth } from '@clerk/nextjs';
-
-import Navbar from '@/components/navbar'
+import { cookies } from 'next/headers';
 import prismadb from '@/lib/prismadb';
+import Navbar from '@/components/navbar';
+import { verifyAuth } from '@/lib/auth';  // Add your custom auth verification
 
 export default async function DashboardLayout({
   children,
@@ -11,16 +11,23 @@ export default async function DashboardLayout({
   children: React.ReactNode
   params: { storeId: string }
 }) {
-  const { userId } = auth();
+  const cookieStore = cookies();
+  const token = cookieStore.get('token')?.value;
+  
+  if (!token) {
+    redirect('/sign-in');
+  }
 
-  if (!userId) {
+  const session = await verifyAuth(token);
+
+  if (!session?.user) {
     redirect('/sign-in');
   }
 
   const store = await prismadb.store.findFirst({ 
     where: {
       id: params.storeId,
-      userId,
+      userId: session.user.id,  // Use the user ID from your custom session
     }
    });
 

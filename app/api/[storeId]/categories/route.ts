@@ -1,20 +1,29 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
-
+import { cookies } from 'next/headers';
+import { verifyAuth } from '@/lib/auth';
 import prismadb from '@/lib/prismadb';
- 
+
 export async function POST(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const { userId } = auth();
+    const token = cookies().get('token')?.value;
+    
+    if (!token) {
+      return new NextResponse("Unauthorized", { status: 403 });
+    }
+
+    const session = await verifyAuth(token);
+    if (!session?.user) {
+      return new NextResponse("Unauthorized", { status: 403 });
+    }
 
     const body = await req.json();
 
     const { name, billboardId } = body;
 
-    if (!userId) {
+    if (!session.user.id) {
       return new NextResponse("Unauthenticated", { status: 403 });
     }
 
@@ -33,7 +42,7 @@ export async function POST(
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId,
+        userId: session.user.id,
       }
     });
 

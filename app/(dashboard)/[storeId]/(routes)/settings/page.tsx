@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs";
-
+import { cookies } from 'next/headers';
 import prismadb from "@/lib/prismadb";
-
+import { verifyAuth } from "@/lib/auth";
 import { SettingsForm } from "./components/settings-form";
 
 const SettingsPage = async ({
@@ -10,16 +9,22 @@ const SettingsPage = async ({
 }: {
   params: { storeId: string }
 }) => {
-  const { userId } = auth();
+  const cookieStore = cookies();
+  const token = cookieStore.get('token')?.value;
 
-  if (!userId) {
+  if (!token) {
+    redirect('/sign-in');
+  }
+
+  const session = await verifyAuth(token);
+  if (!session?.user) {
     redirect('/sign-in');
   }
 
   const store = await prismadb.store.findFirst({
     where: {
       id: params.storeId,
-      userId
+      userId: session.user.id
     }
   });
 

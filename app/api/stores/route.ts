@@ -1,20 +1,21 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
-
+import { cookies } from 'next/headers';
+import { verify } from 'jsonwebtoken';
 import prismadb from '@/lib/prismadb';
 
-export async function POST(
-  req: Request,
-) {
+export async function POST(req: Request) {
   try {
-    const { userId } = auth();
-    const body = await req.json();
-
-    const { name } = body;
-
-    if (!userId) {
+    const token = cookies().get('token')?.value;
+    
+    if (!token) {
       return new NextResponse("Unauthorized", { status: 403 });
     }
+
+    const decoded = verify(token, process.env.JWT_SECRET!) as { sub: string };
+    const userId = decoded.sub;
+
+    const body = await req.json();
+    const { name } = body;
 
     if (!name) {
       return new NextResponse("Name is required", { status: 400 });
@@ -32,4 +33,4 @@ export async function POST(
     console.log('[STORES_POST]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
+}

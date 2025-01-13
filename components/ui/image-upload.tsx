@@ -1,11 +1,10 @@
 "use client";
 
-import { CldUploadWidget } from 'next-cloudinary';
 import { useEffect, useState } from 'react';
-
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { ImagePlus, Trash } from 'lucide-react';
+import { storage, ID } from '@/lib/appwrite-config';
 
 interface ImageUploadProps {
   disabled?: boolean;
@@ -26,8 +25,26 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     setIsMounted(true);
   }, []);
 
-  const onUpload = (result: any) => {
-    onChange(result.info.secure_url);
+  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+
+    try {
+      const file = e.target.files[0];
+      const fileId = ID.unique();
+      
+      await storage.createFile(
+        '678491cc0018813ad930',
+        fileId,
+        file
+      );
+
+      // Construct the direct file URL
+      const fileUrl = `https://cloud.appwrite.io/v1/storage/buckets/678491cc0018813ad930/files/${fileId}/view`;
+
+      onChange(fileUrl);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+    }
   };
 
   if (!isMounted) {
@@ -53,27 +70,25 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
           </div>
         ))}
       </div>
-      <CldUploadWidget onUpload={onUpload} uploadPreset="z2brl9nx">
-        {({ open }) => {
-          const onClick = () => {
-            open();
-          };
-
-          return (
-            <Button 
-              type="button" 
-              disabled={disabled} 
-              variant="secondary" 
-              onClick={onClick}
-            >
-              <ImagePlus className="h-4 w-4 mr-2" />
-              Upload an Image
-            </Button>
-          );
-        }}
-      </CldUploadWidget>
+      <Button 
+        type="button" 
+        disabled={disabled} 
+        variant="secondary" 
+        onClick={() => document.getElementById('file-upload')?.click()}
+      >
+        <ImagePlus className="h-4 w-4 mr-2" />
+        Upload an Image
+      </Button>
+      <input
+        id="file-upload"
+        type="file"
+        accept="image/*"
+        onChange={onUpload}
+        style={{ display: 'none' }}
+      />
     </div>
   );
 }
  
 export default ImageUpload;
+    
