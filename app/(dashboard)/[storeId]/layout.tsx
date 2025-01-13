@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import prismadb from '@/lib/prismadb';
-import Navbar from '@/components/navbar';
+import NavbarWrapper from "@/components/navbar-wrapper";
 import { verifyAuth } from '@/lib/auth';  // Add your custom auth verification
 
 export default async function DashboardLayout({
@@ -37,7 +37,7 @@ export default async function DashboardLayout({
 
   return (
     <>
-      <Navbar />
+      <NavbarWrapper />
       {children}
     </>
   );
