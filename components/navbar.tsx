@@ -1,29 +1,22 @@
-import { redirect } from "next/navigation";
-import { cookies } from 'next/headers';
+'use client';
+
+import { useRouter } from "next/navigation";
 import { MainNav } from "@/components/main-nav";
 import StoreSwitcher from "@/components/store-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
-import prismadb from "@/lib/prismadb";
-import { verifyAuth } from "@/lib/auth";
+import { handleSignOut } from "@/lib/auth-utils";
 
-const Navbar = async () => {
-  const cookieStore = cookies();
-  const token = cookieStore.get('token')?.value;
+const Navbar = ({ stores }: { stores: any[] }) => {
+  const router = useRouter();
 
-  if (!token) {
-    redirect('/sign-in');
-  }
-
-  const session = await verifyAuth(token);
-  if (!session?.user) {
-    redirect('/sign-in');
-  }
-
-  const stores = await prismadb.store.findMany({
-    where: {
-      userId: session.user.id,
-    },
-  });
+  const onSignOut = async () => {
+    try {
+      await handleSignOut();
+      router.push('/sign-in');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <div className="border-b">
@@ -32,14 +25,12 @@ const Navbar = async () => {
         <MainNav className="mx-6" />
         <div className="ml-auto flex items-center space-x-4">
           <ThemeToggle />
-          <form action="/api/auth/signout" method="post">
-            <button 
-              type="submit"
-              className="text-sm font-medium transition-colors hover:text-primary"
-            >
-              Sign Out
-            </button>
-          </form>
+          <button 
+            onClick={onSignOut}
+            className="text-sm font-medium transition-colors hover:text-primary"
+          >
+            Sign Out
+          </button>
         </div>
       </div>
     </div>
