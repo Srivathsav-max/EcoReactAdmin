@@ -1,22 +1,27 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs";
-
+import { cookies } from 'next/headers';
 import prismadb from "@/lib/prismadb";
-
+import { verifyAuth } from "@/lib/auth";
 
 export async function PATCH(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const { userId } = auth();
-    const body = await req.json();
+    const cookieStore = cookies();
+    const token = cookieStore.get('token')?.value;
 
-    const { name } = body;
-
-    if (!userId) {
+    if (!token) {
       return new NextResponse("Unauthenticated", { status: 403 });
     }
+
+    const session = await verifyAuth(token);
+    if (!session?.user) {
+      return new NextResponse("Unauthenticated", { status: 403 });
+    }
+
+    const body = await req.json();
+    const { name } = body;
 
     if (!name) {
       return new NextResponse("Name is required", { status: 400 });
@@ -29,7 +34,7 @@ export async function PATCH(
     const store = await prismadb.store.updateMany({
       where: {
         id: params.storeId,
-        userId,
+        userId: session.user.id,
       },
       data: {
         name
@@ -43,15 +48,20 @@ export async function PATCH(
   }
 };
 
-
 export async function DELETE(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const { userId } = auth();
+    const cookieStore = cookies();
+    const token = cookieStore.get('token')?.value;
 
-    if (!userId) {
+    if (!token) {
+      return new NextResponse("Unauthenticated", { status: 403 });
+    }
+
+    const session = await verifyAuth(token);
+    if (!session?.user) {
       return new NextResponse("Unauthenticated", { status: 403 });
     }
 
@@ -62,7 +72,7 @@ export async function DELETE(
     const store = await prismadb.store.deleteMany({
       where: {
         id: params.storeId,
-        userId
+        userId: session.user.id
       }
     });
   
