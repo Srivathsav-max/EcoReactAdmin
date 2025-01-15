@@ -125,39 +125,37 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 403 });
     }
 
-    await prismadb.product.update({
+    // Delete existing images first
+    await prismadb.image.deleteMany({
       where: {
-        id: params.productId
-      },
-      data: {
-        name,
-        price,
-        categoryId,
-        colorId,
-        sizeId,
-        images: {
-          deleteMany: {},
-        },
-        isFeatured,
-        isArchived,
-      },
+        productId: params.productId
+      }
     });
 
+    // Update product with new images
     const product = await prismadb.product.update({
       where: {
         id: params.productId
       },
       data: {
+        name: body.name,
+        price: body.price,
+        categoryId: body.categoryId,
+        colorId: body.colorId,
+        sizeId: body.sizeId,
         images: {
           createMany: {
-            data: [
-              ...images.map((image: { url: string }) => image),
-            ],
-          },
+            data: body.images.map((image: { url: string, fileId: string }) => ({
+              url: image.url,
+              fileId: image.fileId
+            }))
+          }
         },
+        isFeatured: body.isFeatured,
+        isArchived: body.isArchived,
       },
-    })
-  
+    });
+
     return NextResponse.json(product);
   } catch (error) {
     console.log('[PRODUCT_PATCH]', error);

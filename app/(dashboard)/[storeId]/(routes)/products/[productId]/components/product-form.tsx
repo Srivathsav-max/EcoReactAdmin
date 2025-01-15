@@ -27,10 +27,14 @@ import { AlertModal } from "@/components/modals/alert-modal"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import ImageUpload from "@/components/ui/image-upload"
 import { Checkbox } from "@/components/ui/checkbox"
+import { getMaskedImageUrl } from '@/lib/appwrite-config';
 
 const formSchema = z.object({
   name: z.string().min(1),
-  images: z.object({ url: z.string() }).array(),
+  images: z.object({ 
+    url: z.string(),
+    fileId: z.string()
+  }).array(),
   price: z.coerce.number().min(1),
   categoryId: z.string().min(1),
   colorId: z.string().min(1),
@@ -42,9 +46,10 @@ const formSchema = z.object({
 type ProductFormValues = z.infer<typeof formSchema>
 
 interface ProductFormProps {
-  initialData: Product & {
-    images: Image[]
-  } | null;
+  initialData: (Omit<Product, 'price'> & {
+    price: string;  // Accept string
+    images: Image[];
+  }) | null;
   categories: Category[];
   colors: Color[];
   sizes: Size[];
@@ -67,13 +72,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const toastMessage = initialData ? 'Product updated.' : 'Product created.';
   const action = initialData ? 'Save changes' : 'Create';
 
-  const defaultValues = initialData ? {
+  // Transform initial data to use masked URLs
+  const formattedInitialData = initialData ? {
     ...initialData,
-    price: parseFloat(String(initialData?.price)),
+    images: initialData.images.map(img => ({
+      ...img,
+      url: getMaskedImageUrl(img.fileId)
+    }))
+  } : null;
+
+  // Use formattedInitialData instead of initialData
+  const defaultValues = formattedInitialData ? {
+    ...formattedInitialData,
+    price: parseFloat(formattedInitialData.price),
   } : {
     name: '',
     images: [],
-    price: 0,
+    price: 0.00,
     categoryId: '',
     colorId: '',
     sizeId: '',
@@ -151,9 +166,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 <FormLabel>Images</FormLabel>
                 <FormControl>
                   <ImageUpload 
-                    value={field.value.map((image) => image.url)} 
                     disabled={loading} 
-                    onChange={(url) => field.onChange([...field.value, { url }])}
+                    value={field.value.map((image) => image.url)} 
+                    onChange={(url) => field.onChange([{ url, fileId: '' }])}
+                    onChangeUrl={(url, fileId) => field.onChange([...field.value, { url, fileId }])}
                     onRemove={(url) => field.onChange([...field.value.filter((current) => current.url !== url)])}
                   />
                 </FormControl>
@@ -182,8 +198,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 <FormItem>
                   <FormLabel>Price</FormLabel>
                   <FormControl>
-                    <Input type="number" disabled={loading} placeholder="9.99" {...field} />
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      disabled={loading} 
+                      placeholder="0.00"
+                      value={field.value}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                    />
                   </FormControl>
+                  <FormDescription>
+                    Price in USD
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

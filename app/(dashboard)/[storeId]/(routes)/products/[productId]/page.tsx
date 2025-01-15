@@ -1,5 +1,4 @@
 import prismadb from "@/lib/prismadb";
-
 import { ProductForm } from "./components/product-form";
 
 const ProductPage = async ({
@@ -15,6 +14,12 @@ const ProductPage = async ({
       images: true,
     }
   });
+
+  // Format the product data while maintaining the original Decimal type
+  const formattedProduct = product ? {
+    ...product,
+    price: product.price.toString() // Convert Decimal to string
+  } : null;
 
   const categories = await prismadb.category.findMany({
     where: {
@@ -41,7 +46,7 @@ const ProductPage = async ({
           categories={categories} 
           colors={colors}
           sizes={sizes}
-          initialData={product}
+          initialData={formattedProduct}
         />
       </div>
     </div>

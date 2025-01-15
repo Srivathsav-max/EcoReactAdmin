@@ -118,8 +118,14 @@ export async function GET(
         createdAt: 'desc',
       }
     });
+
+    // Convert Decimal to number
+    const formattedProducts = products.map(product => ({
+      ...product,
+      price: parseFloat(product.price.toString()) || 0
+    }));
   
-    return NextResponse.json(products);
+    return NextResponse.json(formattedProducts);
   } catch (error) {
     console.log('[PRODUCTS_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
