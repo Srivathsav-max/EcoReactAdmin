@@ -9,15 +9,19 @@ export async function GET(
     const fileId = params.fileId;
     const appwriteUrl = getFilePreviewUrl(fileId);
     
-    // Fetch the image from Appwrite
     const response = await fetch(appwriteUrl);
-    const blob = await response.blob();
     
-    // Return the image with appropriate headers
-    return new NextResponse(blob, {
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+    
+    const buffer = await response.arrayBuffer();
+    
+    return new NextResponse(buffer, {
       headers: {
         'Content-Type': response.headers.get('Content-Type') || 'image/jpeg',
         'Cache-Control': 'public, max-age=31536000, immutable',
+        'Content-Length': buffer.byteLength.toString(),
       },
     });
   } catch (error) {
