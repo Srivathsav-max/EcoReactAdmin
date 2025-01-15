@@ -30,12 +30,12 @@ export function MainNav({
     },
     {
       href: `/${params.storeId}/sizes`,
-      label: 'Sizes',
+      label: 'Reports',
       active: pathname === `/${params.storeId}/sizes`,
     },
     {
       href: `/${params.storeId}/colors`,
-      label: 'Colors',
+      label: 'Lists',
       active: pathname === `/${params.storeId}/colors`,
     },
     {
