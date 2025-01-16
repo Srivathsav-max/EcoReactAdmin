@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const formSchema = z.object({
   name: z.string().min(2),
   billboardId: z.string().min(1),
+  parentId: z.string().optional(),
 });
 
 type CategoryFormValues = z.infer<typeof formSchema>
@@ -35,11 +36,13 @@ type CategoryFormValues = z.infer<typeof formSchema>
 interface CategoryFormProps {
   initialData: Category | null;
   billboards: Billboard[];
+  categories?: Category[]; // Make categories optional
 };
 
 export const CategoryForm: React.FC<CategoryFormProps> = ({
   initialData,
-  billboards
+  billboards,
+  categories = [] // Provide default empty array
 }) => {
   const params = useParams();
   const router = useRouter();
@@ -57,8 +60,15 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
     defaultValues: initialData || {
       name: '',
       billboardId: '',
+      parentId: '',
     }
   });
+
+  // Filter out current category and its children from parent options
+  const availableParents = categories.filter(cat => 
+    cat.id !== initialData?.id && 
+    !isDescendantSafe(cat, initialData?.id)
+  );
 
   const onSubmit = async (data: CategoryFormValues) => {
     try {
@@ -153,6 +163,35 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="parentId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Parent Category (Optional)</FormLabel>
+                  <Select 
+                    disabled={loading} 
+                    onValueChange={field.onChange} 
+                    value={field.value || ""}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select parent category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">None (Root Category)</SelectItem>
+                      {availableParents.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
           <Button disabled={loading} className="ml-auto" type="submit">
             {action}
@@ -161,4 +200,14 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
       </Form>
     </>
   );
+};
+
+// Updated helper function to safely handle undefined children
+const isDescendantSafe = (category: Category, targetId: string | undefined): boolean => {
+  if (!targetId) return false;
+  if (category.id === targetId) return true;
+  if ((category as any).children) {
+    return (category as any).children.some((child: Category) => isDescendantSafe(child, targetId));
+  }
+  return false;
 };

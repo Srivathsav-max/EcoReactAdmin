@@ -1,5 +1,4 @@
 import prismadb from "@/lib/prismadb";
-
 import { CategoryForm } from "./components/category-form";
 
 const CategoryPage = async ({
@@ -19,10 +18,27 @@ const CategoryPage = async ({
     }
   });
 
-  return ( 
+  // Add categories fetch
+  const categories = await prismadb.category.findMany({
+    where: {
+      storeId: params.storeId,
+      NOT: {
+        id: params.categoryId // Exclude current category
+      }
+    },
+    include: {
+      children: true
+    }
+  });
+
+  return (
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <CategoryForm billboards={billboards} initialData={category} />
+        <CategoryForm 
+          initialData={category}
+          billboards={billboards}
+          categories={categories} // Pass categories prop
+        />
       </div>
     </div>
   );

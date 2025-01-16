@@ -21,7 +21,7 @@ export async function POST(
 
     const body = await req.json();
 
-    const { name, billboardId } = body;
+    const { name, billboardId, parentId } = body;
 
     if (!session.user.id) {
       return new NextResponse("Unauthenticated", { status: 403 });
@@ -55,6 +55,7 @@ export async function POST(
         name,
         billboardId,
         storeId: params.storeId,
+        parentId: parentId || null,
       }
     });
   
@@ -74,10 +75,24 @@ export async function GET(
       return new NextResponse("Store id is required", { status: 400 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const includeChildren = searchParams.get('includeChildren') === 'true';
+
     const categories = await prismadb.category.findMany({
       where: {
-        storeId: params.storeId
-      }
+        storeId: params.storeId,
+        parentId: includeChildren ? null : undefined, // Only fetch root categories if includeChildren is true
+      },
+      include: includeChildren ? {
+        children: {
+          include: {
+            billboard: true,
+          }
+        },
+        billboard: true,
+      } : {
+        billboard: true,
+      },
     });
   
     return NextResponse.json(categories);
