@@ -20,8 +20,12 @@ export default function SignInPage() {
     email: "",
     password: "",
   });
+  const getRedirectQuery = () => {
+    return redirectUrl !== "/" ? `?redirect=${redirectUrl}` : "";
+  };
 
-  const redirectUrl = searchParams.get("redirect") || "/";
+
+  const redirectUrl = searchParams?.get("redirect") || "/";
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,15 +120,27 @@ export default function SignInPage() {
           </form>
         </CardContent>
         <CardFooter>
-          <p className="text-center text-sm text-gray-600 w-full">
-            Don&apos;t have an account?{' '}
-            <Link 
-              href={`/sign-up${redirectUrl !== "/" ? `?redirect=${redirectUrl}` : ""}`}
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              Sign up
-            </Link>
-          </p>
+        <div className="space-y-2 w-full">
+            <div className="flex justify-center">
+              <Link
+                href={`/forget-password${getRedirectQuery()}`}
+                className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <div className="flex justify-center">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{' '}
+                <Link
+                  href={`/sign-up${getRedirectQuery()}`}
+                  className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                >
+                  Sign up
+                </Link>
+              </p>
+            </div>
+          </div>
         </CardFooter>
       </Card>
     </div>
