@@ -12,6 +12,7 @@ import { useState } from "react"
 
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import {
   Form,
   FormControl,
@@ -89,14 +90,21 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({
     />
      <div className="flex items-center justify-between">
         <Heading title="Store settings" description="Manage store preferences" />
-        <Button
-          disabled={loading}
-          variant="destructive"
-          size="sm"
-          onClick={() => setOpen(true)}
-        >
-          <Trash className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link href={`/${params.storeId}/settings/security`}>
+            <Button variant="outline">
+              Security Settings
+            </Button>
+          </Link>
+          <Button
+            disabled={loading}
+            variant="destructive"
+            size="sm"
+            onClick={() => setOpen(true)}
+          >
+            <Trash className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       <Separator />
       <Form {...form}>
