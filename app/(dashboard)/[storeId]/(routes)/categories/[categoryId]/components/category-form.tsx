@@ -26,12 +26,16 @@ import { AlertModal } from "@/components/modals/alert-modal"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const formSchema = z.object({
-  name: z.string().min(2),
+  name: z.string().min(1),
   billboardId: z.string().min(1),
   parentId: z.string().optional(),
 });
 
-type CategoryFormValues = z.infer<typeof formSchema>
+interface CategoryFormValues {
+  name: string;
+  billboardId: string;
+  parentId?: string;
+}
 
 interface CategoryFormProps {
   initialData: Category | null;
@@ -57,10 +61,14 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
+    defaultValues: initialData ? {
+      name: initialData.name,
+      billboardId: initialData.billboardId,
+      parentId: initialData.parentId || undefined,
+    } : {
       name: '',
       billboardId: '',
-      parentId: '',
+      parentId: undefined,
     }
   });
 
