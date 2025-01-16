@@ -1,18 +1,24 @@
 import { NextResponse } from 'next/server';
 import prismadb from "@/lib/prismadb";
 import { sign } from 'jsonwebtoken';
+import { verifyPassword } from "@/lib/password";
 
 export async function POST(req: Request) {
   try {
-    const { email, password } = await req.json();
+    const body = await req.json();
+    const { email, password } = body;
 
     const user = await prismadb.user.findUnique({
       where: { email }
     });
 
-    // Direct password comparison since we're not using hashing
-    if (!user || user.password !== password) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    if (!user) {
+      return new NextResponse("Invalid credentials", { status: 401 });
+    }
+
+    const isValid = await verifyPassword(password, user.password);
+    if (!isValid) {
+      return new NextResponse("Invalid credentials", { status: 401 });
     }
 
     // ...rest of your signin logic with JWT...
