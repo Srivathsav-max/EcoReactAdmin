@@ -42,12 +42,16 @@ model Category {
   billboardId String      // Foreign Key to Billboard
   billboard   Billboard   @relation(fields: [billboardId], references: [id])
   name        String
+  parentId    String?     // New field
+  parent      Category?   @relation("CategoryToSubCategories", fields: [parentId], references: [id])
+  children    Category[]  @relation("CategoryToSubCategories")
   products    Product[]   @relation("CategoryToProduct")
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   @@index([storeId])
   @@index([billboardId])
+  @@index([parentId])    // New index
 }
 
 model Product {
