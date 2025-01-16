@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server';
 import prismadb from "@/lib/prismadb";
+import { hashPassword } from "@/lib/password";
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
-    const { email, password } = body;
+    const body = await req.json();
+    console.log('Reset password request body:', body); // Debug log
+
+    const { email, password } = body; // Changed from newPassword to password to match frontend
 
     if (!email || !password) {
+      console.log('Missing required fields:', { email: !!email, password: !!password }); // Debug log
       return NextResponse.json(
-        { success: false, message: 'Email and password are required' },
+        { 
+          success: false, 
+          message: `Required fields missing: ${!email ? 'email' : ''} ${!password ? 'password' : ''}`.trim() 
+        },
         { status: 400 }
       );
     }
@@ -25,12 +32,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Update user's password directly since we're not hashing
+    const hashedPassword = await hashPassword(password);
+    console.log('Updating password for email:', email); // Debug log
+
+    // Update user's password
     await prismadb.user.update({
       where: { email },
       data: {
-        password,
-        updatedAt: new Date(),
+        password: hashedPassword,
       },
     });
 
@@ -40,7 +49,7 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
-    console.error('Error in reset-password API:', error);
+    console.error('Reset password error:', error);
     return NextResponse.json(
       { success: false, message: 'Failed to reset password' },
       { status: 500 }

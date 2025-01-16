@@ -1,8 +1,67 @@
 import { NextResponse } from "next/server";
-import { hash, compare } from "bcrypt";
+import { hashPassword, verifyPassword } from "@/lib/password";
 import prismadb from "@/lib/prismadb";
 import { cookies } from "next/headers";
 import { verifyAuth } from "@/lib/auth";
+
+async function handleEmailUpdate(userId: string, currentPassword: string, newEmail: string) {
+  const user = await prismadb.user.findUnique({
+    where: { id: userId }
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const isValid = await verifyPassword(currentPassword, user.password);
+  if (!isValid) {
+    throw new Error("Invalid current password");
+  }
+
+  // Check if new email is already in use
+  if (newEmail !== user.email) {
+    const existingUser = await prismadb.user.findUnique({
+      where: { email: newEmail }
+    });
+    
+    if (existingUser) {
+      throw new Error("Email already in use");
+    }
+
+    // Update email
+    const updatedUser = await prismadb.user.update({
+      where: { id: userId },
+      data: { email: newEmail }
+    });
+
+    return updatedUser;
+  }
+
+  throw new Error("New email must be different from current email");
+}
+
+async function handlePasswordUpdate(userId: string, currentPassword: string, newPassword: string) {
+  const user = await prismadb.user.findUnique({
+    where: { id: userId }
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const isValid = await verifyPassword(currentPassword, user.password);
+  if (!isValid) {
+    throw new Error("Invalid current password");
+  }
+
+  const hashedPassword = await hashPassword(newPassword);
+  const updatedUser = await prismadb.user.update({
+    where: { id: userId },
+    data: { password: hashedPassword }
+  });
+
+  return updatedUser;
+}
 
 export async function PATCH(req: Request) {
   try {
@@ -16,38 +75,45 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const { currentPassword, email, newPassword } = body;
 
-    const user = await prismadb.user.findUnique({
-      where: { id: session.user.id }
-    });
-
-    if (!user) {
-      return new NextResponse("User not found", { status: 404 });
+    if (!currentPassword) {
+      return new NextResponse("Current password is required", { status: 400 });
     }
 
-    // Verify current password
-    const isValid = await compare(currentPassword, user.password);
-    if (!isValid) {
-      return new NextResponse("Invalid current password", { status: 400 });
+    // Handle email update
+    if (email && !newPassword) {
+      try {
+        const updatedUser = await handleEmailUpdate(session.user.id, currentPassword, email);
+        return NextResponse.json({
+          message: "Email updated successfully",
+          email: updatedUser.email
+        });
+      } catch (error: any) {
+        return new NextResponse(error.message, { status: 400 });
+      }
     }
 
-    const updates: any = {};
-    
-    if (email) {
-      updates.email = email;
+    // Handle password update
+    if (newPassword && !email) {
+      try {
+        await handlePasswordUpdate(session.user.id, currentPassword, newPassword);
+        return NextResponse.json({
+          message: "Password updated successfully"
+        });
+      } catch (error: any) {
+        return new NextResponse(error.message, { status: 400 });
+      }
     }
 
-    if (newPassword) {
-      updates.password = await hash(newPassword, 10);
-    }
+    return new NextResponse(
+      "Invalid request. Please update either email or password, not both.", 
+      { status: 400 }
+    );
 
-    const updatedUser = await prismadb.user.update({
-      where: { id: session.user.id },
-      data: updates
-    });
-
-    return NextResponse.json(updatedUser);
   } catch (error) {
     console.error('[SECURITY_PATCH]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    return new NextResponse(
+      "Internal server error", 
+      { status: 500 }
+    );
   }
 }
