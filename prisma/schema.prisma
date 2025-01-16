@@ -18,6 +18,7 @@ model Store {
   sizes           Size[]     @relation("StoreToSize")
   colors          Color[]     @relation("StoreToColor")
   orders          Order[]     @relation("StoreToOrder")
+  customers       Customer[] @relation("StoreToCustomer")
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 }
@@ -150,4 +151,38 @@ model User {
   password String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id          String    @id @default(uuid())
+  storeId     String    // Foreign Key to Store
+  store       Store     @relation("StoreToCustomer", fields: [storeId], references: [id])
+  name        String
+  email       String
+  password    String
+  phone       String?
+  addresses   Address[] // New relation
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([email, storeId])
+  @@index([storeId])
+}
+
+// New Address Model
+model Address {
+  id          String    @id @default(uuid())
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  type        String    // e.g., "home", "office", "shipping"
+  street      String
+  city        String
+  state       String
+  postalCode  String
+  country     String
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([customerId])
 }
