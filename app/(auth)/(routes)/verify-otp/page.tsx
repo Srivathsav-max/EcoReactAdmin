@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
@@ -12,16 +12,22 @@ import { Loader2, ArrowLeft } from "lucide-react";
 export default function VerifyOTP() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const email = searchParams?.get('email');
-
-  // Add validation for missing email
-  if (!email) {
-    router.push('/forget-password');
-    return null;
-  }
-
   const [loading, setLoading] = useState(false);
   const [otp, setOtp] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    const emailParam = searchParams?.get('email');
+    if (!emailParam) {
+      router.push('/forget-password');
+    } else {
+      setEmail(emailParam);
+    }
+  }, [searchParams, router]);
+
+  if (!email) {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -120,7 +120,7 @@ export default function SignInPage() {
           </form>
         </CardContent>
         <CardFooter>
-        <div className="space-y-2 w-full">
+          <div className="space-y-2 w-full">
             <div className="flex justify-center">
               <Link
                 href={`/forget-password${getRedirectQuery()}`}
@@ -131,7 +131,7 @@ export default function SignInPage() {
             </div>
             <div className="flex justify-center">
               <p className="text-sm text-gray-600">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link
                   href={`/sign-up${getRedirectQuery()}`}
                   className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
