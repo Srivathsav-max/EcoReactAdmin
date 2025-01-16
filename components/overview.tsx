@@ -1,17 +1,18 @@
 "use client";
 
-import { Chart } from "react-chartjs-2";
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
   LineElement,
   PointElement,
-  Title, 
-  Tooltip, 
-  Legend 
-} from "chart.js";
+  Title,
+  Tooltip,
+  Legend,
+  ChartOptions
+} from 'chart.js';
+import { Chart } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
@@ -33,9 +34,9 @@ export const Overview: React.FC<OverviewProps> = ({
   data,
   customersData
 }) => {
-  const options = {
+  const options: ChartOptions<'bar'> = {
     responsive: true,
-    maintainAspectRatio: false,  // Add this to allow custom height
+    maintainAspectRatio: false,
     interaction: {
       mode: 'index' as const,
       intersect: false,
@@ -69,30 +70,35 @@ export const Overview: React.FC<OverviewProps> = ({
     labels: data.map((item) => item.name),
     datasets: [
       {
+        type: 'bar' as const,
         label: 'Revenue',
         data: data.map((item) => item.total),
         backgroundColor: 'rgba(53, 162, 235, 0.5)',
         borderColor: 'rgb(53, 162, 235)',
         borderWidth: 1,
         yAxisID: 'y',
-        type: 'bar' as const,
       },
       {
+        type: 'line' as const,
         label: 'Total Customers',
         data: customersData.map((item) => item.total),
         borderColor: 'rgb(255, 99, 132)',
         backgroundColor: 'rgba(255, 99, 132, 0.5)',
         borderWidth: 2,
         yAxisID: 'y1',
-        type: 'line' as const,
-        tension: 0.4
+        tension: 0.4,
+        fill: false
       }
-    ],
+    ]
   };
 
   return (
     <div className="h-[75vh] w-full">
-      <Chart type='bar' options={options} data={chartData} />
+      <Chart 
+        type='bar'
+        options={options} 
+        data={chartData as any} 
+      />
     </div>
   );
 };
