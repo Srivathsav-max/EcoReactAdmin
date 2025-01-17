@@ -21,6 +21,11 @@ const publicApiRoutes = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Allow public access to API routes
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
   // Allow access to public routes
   if (publicRoutes.includes(pathname) || 
       publicApiRoutes.some(route => pathname.startsWith(route))) {
@@ -44,11 +49,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
      */
-    '/((?!_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
   ],
 };
