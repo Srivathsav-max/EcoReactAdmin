@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { hashPassword, verifyPassword } from "@/lib/password";
 import prismadb from "@/lib/prismadb";
 import { cookies } from "next/headers";
-import { verifyAuth } from "@/lib/auth";
+import { verifyAuth, hashPassword, verifyPassword } from "@/lib/auth";
 
 async function handleEmailUpdate(userId: string, currentPassword: string, newEmail: string) {
   const user = await prismadb.user.findUnique({
