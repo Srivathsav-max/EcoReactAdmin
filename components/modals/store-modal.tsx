@@ -19,14 +19,21 @@ const formSchema = z.object({
   name: z.string().min(1),
 });
 
-export const StoreModal = () => {
+interface StoreModalProps {
+  hasStores?: boolean;
+}
+
+export const StoreModal = ({ hasStores = false }: StoreModalProps) => {
   const storeModal = useStoreModal();
   const router = useRouter();
-
   const [loading, setLoading] = useState(false);
 
-  const handleSignOut = () => {
-    signOut({ callbackUrl: '/sign-in' });
+  const handleClose = () => {
+    if (!hasStores) {
+      signOut({ callbackUrl: '/sign-in' });
+    } else {
+      storeModal.onClose();
+    }
   };
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -53,7 +60,7 @@ export const StoreModal = () => {
       title="Create store"
       description="Add a new store to manage products and categories."
       isOpen={storeModal.isOpen} 
-      onClose={handleSignOut}
+      onClose={handleClose}
     >
       <div>
         <div className="space-y-4 py-2 pb-4">
@@ -74,7 +81,7 @@ export const StoreModal = () => {
                   )}
                 />
                 <div className="pt-6 space-x-2 flex items-center justify-end w-full">
-                  <Button disabled={loading} variant="outline" onClick={handleSignOut}>
+                  <Button disabled={loading} variant="outline" onClick={handleClose}>
                     Cancel
                   </Button>
                   <Button disabled={loading} type="submit">Continue</Button>
