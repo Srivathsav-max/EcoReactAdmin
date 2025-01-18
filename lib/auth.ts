@@ -2,12 +2,19 @@ import { compare, hash } from 'bcryptjs';
 import { verify } from 'jsonwebtoken';
 import prismadb from '@/lib/prismadb';
 
+const SALT_ROUNDS = 12;
+
 export async function hashPassword(password: string) {
-  return await hash(password, 12);
+  return await hash(password, SALT_ROUNDS);
 }
 
-export async function verifyPassword(password: string, hashedPassword: string) {
-  return await compare(password, hashedPassword);
+export async function verifyPassword(plainPassword: string, hashedPassword: string) {
+  try {
+    const isValid = await compare(plainPassword, hashedPassword);
+    return isValid;
+  } catch (error) {
+    return false;
+  }
 }
 
 export async function createUser(email: string, password: string) {

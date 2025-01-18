@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { createUser, getUserByEmail } from '@/lib/auth';
-import { hashPassword } from "@/lib/password";
+import { createUser, getUserByEmail, hashPassword } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, password, name } = body;
+    const { email, password } = body;
 
     const existingUser = await getUserByEmail(email);
     if (existingUser) {
@@ -15,9 +14,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const hashedPassword = await hashPassword(password);
-
-    const user = await createUser(email, hashedPassword);
+    const user = await createUser(email, password); // createUser already handles hashing
     return NextResponse.json(
       { user: { id: user.id, email: user.email } },
       { status: 201 }

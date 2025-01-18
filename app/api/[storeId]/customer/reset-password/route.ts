@@ -1,7 +1,6 @@
-
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
-import bcrypt from "bcrypt";
+import { hashPassword } from "@/lib/auth";
 
 export async function POST(
   req: Request,
@@ -15,7 +14,7 @@ export async function POST(
       return new NextResponse("Missing required fields", { status: 400 });
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await hashPassword(newPassword);
 
     const customer = await prismadb.customer.update({
       where: {
