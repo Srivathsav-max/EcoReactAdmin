@@ -25,8 +25,20 @@ export const StoreModal = () => {
 
   const [loading, setLoading] = useState(false);
 
-  const handleSignOut = () => {
-    signOut({ callbackUrl: '/sign-in' });
+  const handleClose = async () => {
+    try {
+      const response = await axios.get('/api/stores');
+      const hasStores = response.data.length > 0;
+      
+      if (!hasStores) {
+        signOut({ callbackUrl: '/sign-in' });
+      } else {
+        storeModal.onClose();
+      }
+    } catch (error) {
+      console.log(error);
+      signOut({ callbackUrl: '/sign-in' });
+    }
   };
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -53,7 +65,7 @@ export const StoreModal = () => {
       title="Create store"
       description="Add a new store to manage products and categories."
       isOpen={storeModal.isOpen} 
-      onClose={handleSignOut}
+      onClose={handleClose}
     >
       <div>
         <div className="space-y-4 py-2 pb-4">
@@ -74,7 +86,7 @@ export const StoreModal = () => {
                   )}
                 />
                 <div className="pt-6 space-x-2 flex items-center justify-end w-full">
-                  <Button disabled={loading} variant="outline" onClick={handleSignOut}>
+                  <Button disabled={loading} variant="outline" onClick={handleClose}>
                     Cancel
                   </Button>
                   <Button disabled={loading} type="submit">Continue</Button>
