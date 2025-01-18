@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const { email, password } = body;
 
     if (!email || !password) {
-      return new NextResponse("Email and password are required", { status: 400 });
+      return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
     const user = await prismadb.user.findUnique({
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
     if (!user) {
       console.log("User not found:", email);
-      return new NextResponse("Invalid credentials", { status: 401 });
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
     console.log("Found user:", { email: user.email, hashedPasswordLength: user.password.length });
@@ -31,12 +31,12 @@ export async function POST(req: Request) {
     console.log("Password verification result:", isValid);
 
     if (!isValid) {
-      return new NextResponse("Invalid password", { status: 401 });
+      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
     }
 
     if (!process.env.JWT_SECRET) {
       console.error("JWT_SECRET is not defined");
-      return new NextResponse("Server configuration error", { status: 500 });
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
     const token = sign(
