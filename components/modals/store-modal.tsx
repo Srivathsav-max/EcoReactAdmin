@@ -28,11 +28,19 @@ export const StoreModal = ({ hasStores = false }: StoreModalProps) => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const handleClose = () => {
-    if (!hasStores) {
+  const handleClose = async () => {
+    try {
+      const response = await axios.get('/api/stores');
+      const hasStores = response.data.length > 0;
+
+      if (!hasStores) {
+        signOut({ callbackUrl: '/sign-in' });
+      } else {
+        storeModal.onClose();
+      }
+    } catch (error) {
+      console.log(error);
       signOut({ callbackUrl: '/sign-in' });
-    } else {
-      storeModal.onClose();
     }
   };
 
