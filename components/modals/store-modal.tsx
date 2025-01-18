@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { signOut } from "next-auth/react";
 
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,10 @@ export const StoreModal = () => {
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
+
+  const handleSignOut = () => {
+    signOut({ callbackUrl: '/sign-in' });
+  };
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -48,7 +53,7 @@ export const StoreModal = () => {
       title="Create store"
       description="Add a new store to manage products and categories."
       isOpen={storeModal.isOpen} 
-      onClose={storeModal.onClose}
+      onClose={handleSignOut}
     >
       <div>
         <div className="space-y-4 py-2 pb-4">
@@ -69,7 +74,7 @@ export const StoreModal = () => {
                   )}
                 />
                 <div className="pt-6 space-x-2 flex items-center justify-end w-full">
-                  <Button disabled={loading} variant="outline" onClick={storeModal.onClose}>
+                  <Button disabled={loading} variant="outline" onClick={handleSignOut}>
                     Cancel
                   </Button>
                   <Button disabled={loading} type="submit">Continue</Button>
