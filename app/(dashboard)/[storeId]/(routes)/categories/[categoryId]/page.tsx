@@ -27,7 +27,8 @@ const CategoryPage = async ({
       }
     },
     include: {
-      children: true
+      children: true,
+      parent: true
     }
   });
 

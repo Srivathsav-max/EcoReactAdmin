@@ -12,6 +12,7 @@ const ProductPage = async ({
     },
     include: {
       images: true,
+      taxons: true,
     }
   });
 
@@ -20,12 +21,6 @@ const ProductPage = async ({
     ...product,
     price: product.price.toString() // Convert Decimal to string
   } : null;
-
-  const categories = await prismadb.category.findMany({
-    where: {
-      storeId: params.storeId,
-    },
-  });
 
   const sizes = await prismadb.size.findMany({
     where: {
@@ -39,14 +34,32 @@ const ProductPage = async ({
     },
   });
 
+  const taxonomies = await prismadb.taxonomy.findMany({
+    where: {
+      storeId: params.storeId,
+    },
+    include: {
+      taxons: {
+        include: {
+          children: {
+            include: {
+              children: true // Goes 3 levels deep
+            }
+          }
+        }
+      }
+    }
+  });
+
   return ( 
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
         <ProductForm 
-          categories={categories} 
           colors={colors}
           sizes={sizes}
           initialData={formattedProduct}
+          taxonomies={taxonomies}
+          initialTaxons={product?.taxons || []}
         />
       </div>
     </div>

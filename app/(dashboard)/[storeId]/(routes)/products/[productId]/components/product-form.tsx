@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { toast } from "react-hot-toast"
 import { Trash } from "lucide-react"
-import { Category, Color, Image, Product, Size } from "@prisma/client"
+import { Category, Color, Image, Product, Size, Taxonomy, Taxon } from "@prisma/client"
 import { useParams, useRouter } from "next/navigation"
 
 import { Input } from "@/components/ui/input"
@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ImageUpload from "@/components/ui/image-upload"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getMaskedImageUrl } from '@/lib/appwrite-config';
+import { TaxonPicker } from "./taxon-picker";
 
 const formSchema = z.object({
   name: z.string().min(1),
@@ -36,11 +37,11 @@ const formSchema = z.object({
     fileId: z.string()
   }).array(),
   price: z.coerce.number().min(1),
-  categoryId: z.string().min(1),
   colorId: z.string().min(1),
   sizeId: z.string().min(1),
   isFeatured: z.boolean().default(false).optional(),
-  isArchived: z.boolean().default(false).optional()
+  isArchived: z.boolean().default(false).optional(),
+  taxonIds: z.array(z.string()).min(1, "At least one category is required"),
 });
 
 type ProductFormValues = z.infer<typeof formSchema>
@@ -50,16 +51,22 @@ interface ProductFormProps {
     price: string;  // Accept string
     images: Image[];
   }) | null;
-  categories: Category[];
   colors: Color[];
   sizes: Size[];
+  taxonomies: (Taxonomy & {
+    rootTaxon: Taxon & {
+      children: Taxon[];
+    };
+  })[];
+  initialTaxons?: Taxon[];
 };
 
 export const ProductForm: React.FC<ProductFormProps> = ({
   initialData,
-  categories,
   sizes,
-  colors
+  colors,
+  taxonomies,
+  initialTaxons = []
 }) => {
   const params = useParams();
   const router = useRouter();
@@ -85,15 +92,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const defaultValues = formattedInitialData ? {
     ...formattedInitialData,
     price: parseFloat(formattedInitialData.price),
+    taxonIds: initialTaxons?.map(taxon => taxon.id) || [],
   } : {
     name: '',
     images: [],
     price: 0.00,
-    categoryId: '',
     colorId: '',
     sizeId: '',
     isFeatured: false,
     isArchived: false,
+    taxonIds: [],
   }
 
   const form = useForm<ProductFormValues>({
@@ -216,28 +224,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             />
             <FormField
               control={form.control}
-              name="categoryId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <Select disabled={loading} onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue defaultValue={field.value} placeholder="Select a category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="sizeId"
               render={({ field }) => (
                 <FormItem>
@@ -323,6 +309,24 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       This product will not appear anywhere in the store.
                     </FormDescription>
                   </div>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="taxonIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categories</FormLabel>
+                  <FormControl>
+                    <TaxonPicker
+                      taxonomies={taxonomies}
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={loading}
+                    />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />

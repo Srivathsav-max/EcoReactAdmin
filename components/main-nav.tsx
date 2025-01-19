@@ -24,11 +24,6 @@ export function MainNav({
       active: pathname === `/${params.storeId}/billboards`,
     },
     {
-      href: `/${params.storeId}/categories`,
-      label: 'Categories',
-      active: pathname === `/${params.storeId}/categories`,
-    },
-    {
       href: `/${params.storeId}/sizes`,
       label: 'Reports',
       active: pathname === `/${params.storeId}/sizes`,
@@ -37,6 +32,16 @@ export function MainNav({
       href: `/${params.storeId}/colors`,
       label: 'Lists',
       active: pathname === `/${params.storeId}/colors`,
+    },
+    {
+      href: `/${params.storeId}/taxonomies`,
+      label: 'Taxonomies',
+      active: pathname === `/${params.storeId}/taxonomies`,
+    },
+    {
+      href: `/${params.storeId}/taxons`,
+      label: 'Taxons',
+      active: pathname === `/${params.storeId}/taxons`,
     },
     {
       href: `/${params.storeId}/products`,
