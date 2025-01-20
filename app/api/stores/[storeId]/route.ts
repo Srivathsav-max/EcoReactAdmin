@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { cookies } from 'next/headers';
 import prismadb from "@/lib/prismadb";
 import { verifyAuth } from "@/lib/auth";
+import { z } from "zod";
+
+const storeSchema = z.object({
+  name: z.string().min(1),
+  currency: z.string().min(1),
+  locale: z.string().min(1),
+});
 
 export async function PATCH(
   req: Request,
@@ -21,29 +28,37 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { name } = body;
+    const { name, currency, locale } = storeSchema.parse(body);
 
-    if (!name) {
-      return new NextResponse("Name is required", { status: 400 });
-    }
-
-    if (!params.storeId) {
-      return new NextResponse("Store id is required", { status: 400 });
-    }
-
-    const store = await prismadb.store.updateMany({
+    // First verify the store exists
+    const existingStore = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+      }
+    });
+
+    if (!existingStore) {
+      return new NextResponse("Store not found", { status: 404 });
+    }
+
+    // Then update with type safety
+    const store = await prismadb.store.update({
+      where: {
+        id: params.storeId,
       },
       data: {
-        name
+        name: name || undefined,
+        currency: currency || undefined,
+        locale: locale || undefined,
       }
     });
   
     return NextResponse.json(store);
   } catch (error) {
-    console.log('[STORE_PATCH]', error);
+    if (error instanceof Error) {
+      console.log('[STORE_PATCH]', error.message);
+      return new NextResponse(error.message, { status: 500 });
+    }
     return new NextResponse("Internal error", { status: 500 });
   }
 };

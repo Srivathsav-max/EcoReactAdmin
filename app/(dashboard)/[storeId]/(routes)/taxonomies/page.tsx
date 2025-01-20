@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import prismadb from "@/lib/prismadb";
 import { TaxonomiesClient } from "./components/client";
+import { ApiList } from "@/components/ui/api-list";
 
 const TaxonomiesPage = async ({
   params
@@ -34,6 +35,7 @@ const TaxonomiesPage = async ({
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
         <TaxonomiesClient data={formattedTaxonomies} />
+        <ApiList entityName="taxonomies" entityIdName="taxonomyId" />
       </div>
     </div>
   );

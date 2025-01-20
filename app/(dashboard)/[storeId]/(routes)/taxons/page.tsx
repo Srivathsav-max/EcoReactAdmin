@@ -1,6 +1,8 @@
 import prismadb from "@/lib/prismadb";
 import { TaxonsClient } from "./components/client";
 import { Taxonomy, Taxon } from "@prisma/client";
+import { ApiList } from "@/components/ui/api-list";
+import { formatDecimalPrice } from "@/lib/utils";
 
 interface TaxonomyWithTaxons extends Taxonomy {
   taxons: (Taxon & {
@@ -36,7 +38,7 @@ const TaxonsPage = async ({
     }
   }) as TaxonomyWithTaxons[];
 
-  const products = await prismadb.product.findMany({
+  const rawProducts = await prismadb.product.findMany({
     where: {
       storeId: params.storeId
     },
@@ -45,13 +47,20 @@ const TaxonsPage = async ({
     }
   });
 
+  // Format products to handle Decimal type
+  const products = rawProducts.map(product => ({
+    ...product,
+    price: formatDecimalPrice(product.price)
+  }));
+
   return (
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <TaxonsClient 
+        <TaxonsClient
           taxonomies={taxonomiesWithTaxons}
           products={products}
         />
+        <ApiList entityName="taxons" entityIdName="taxonId" />
       </div>
     </div>
   );
