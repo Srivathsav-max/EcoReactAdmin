@@ -5,7 +5,7 @@ import prismadb from "@/lib/prismadb";
 
 export async function GET(
   req: Request,
-  { params }: { params: { productId: string } }
+  { params }: { params: { productId: string, storeId: string } }
 ) {
   try {
     if (!params.productId) {
@@ -14,22 +14,24 @@ export async function GET(
 
     const product = await prismadb.product.findUnique({
       where: {
-        id: params.productId
+        id: params.productId,
       },
       include: {
         images: true,
-        size: true,
-        color: true,
-        taxons: true // Replace category with taxons
-      }
+        taxons: true,
+      },
     });
-  
-    return NextResponse.json(product);
+
+    // Convert Decimal to number before sending response
+    return NextResponse.json({
+      ...product,
+      price: product?.price ? parseFloat(product.price.toString()) : 0
+    });
   } catch (error) {
     console.log('[PRODUCT_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
+}
 
 export async function DELETE(
   req: Request,

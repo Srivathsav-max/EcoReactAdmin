@@ -1,40 +1,48 @@
 import prismadb from "@/lib/prismadb";
 import { ProductForm } from "./components/product-form";
-import { Decimal } from "@prisma/client/runtime/library";
 
 const ProductPage = async ({
   params
 }: {
   params: { productId: string, storeId: string }
 }) => {
-  const product = await prismadb.product.findUnique({
+  const store = await prismadb.store.findFirst({
     where: {
-      id: params.productId,
-    },
-    include: {
-      images: true,
-      taxons: true,
+      id: params.storeId
     }
   });
 
-  // Only format the product if it exists, keeping the Decimal type intact
-  const formattedProduct = product ? {
-    ...product,
-    // Preserve the Decimal type for price
-    price: new Decimal(product.price.toString())
-  } : null;
+  if (!store) {
+    throw new Error("Store not found");
+  }
+
+  const product = await prismadb.product.findUnique({
+    where: {
+      id: params.productId
+    },
+    include: {
+      images: true,
+      taxons: true
+    }
+  });
 
   const sizes = await prismadb.size.findMany({
     where: {
-      storeId: params.storeId,
-    },
+      storeId: params.storeId
+    }
   });
 
   const colors = await prismadb.color.findMany({
     where: {
-      storeId: params.storeId,
-    },
+      storeId: params.storeId
+    }
   });
+
+  // Convert Decimal to number for the form
+  const formattedProduct = product ? {
+    ...product,
+    price: parseFloat(product.price.toString())
+  } : null;
 
   const taxonomies = await prismadb.taxonomy.findMany({
     where: {
@@ -57,11 +65,13 @@ const ProductPage = async ({
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
         <ProductForm 
-          colors={colors}
-          sizes={sizes}
           initialData={formattedProduct}
+          sizes={sizes}
+          colors={colors}
           taxonomies={taxonomies}
           initialTaxons={product?.taxons || []}
+          storeCurrency={store.currency || 'USD'}
+          storeLocale={store.locale || 'en-US'}
         />
       </div>
     </div>

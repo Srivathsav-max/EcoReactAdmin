@@ -29,7 +29,12 @@ import ImageUpload from "@/components/ui/image-upload"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getMaskedImageUrl } from '@/lib/appwrite-config';
 import { TaxonPicker } from "./taxon-picker";
-import { Decimal } from "@prisma/client/runtime/library";
+import { formatPrice } from "@/lib/utils";
+
+// Add this type definition
+type DecimalType = {
+  toNumber(): number;
+};
 
 const formSchema = z.object({
   name: z.string().min(1),
@@ -49,7 +54,7 @@ type ProductFormValues = z.infer<typeof formSchema>
 
 interface ProductFormProps {
   initialData: (Omit<Product, 'price'> & {
-    price: Decimal;
+    price: DecimalType | number; // Changed from Decimal to DecimalType
     images: Image[];
     taxons: Taxon[];
   }) | null;
@@ -61,6 +66,8 @@ interface ProductFormProps {
     })[];
   })[];
   initialTaxons?: Taxon[];
+  storeCurrency: string;
+  storeLocale: string;
 };
 
 export const ProductForm: React.FC<ProductFormProps> = ({
@@ -68,7 +75,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   sizes,
   colors,
   taxonomies,
-  initialTaxons = []
+  initialTaxons = [],
+  storeCurrency,
+  storeLocale,
 }) => {
   const params = useParams();
   const router = useRouter();
@@ -90,10 +99,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }))
   } : null;
 
+  const safeParsePrice = (price: DecimalType | number): number => {
+    if (typeof price === 'object' && 'toNumber' in price) {
+      return price.toNumber();
+    }
+    return typeof price === 'number' ? price : 0;
+  };
+
   // Use formattedInitialData instead of initialData
   const defaultValues = formattedInitialData ? {
     ...formattedInitialData,
-    price: parseFloat(String(formattedInitialData.price)), // Convert Decimal to string first
+    price: safeParsePrice(formattedInitialData.price),
     taxonIds: initialTaxons?.map(taxon => taxon.id) || [],
   } : {
     name: '',
@@ -218,7 +234,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     />
                   </FormControl>
                   <FormDescription>
-                    Price in USD
+                    Price in {storeCurrency}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

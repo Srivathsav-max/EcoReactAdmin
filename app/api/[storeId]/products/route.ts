@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
+import { validatePrice } from "@/lib/utils";
 
 export async function POST(
   req: Request,
@@ -7,9 +8,11 @@ export async function POST(
 ) {
   try {
     const body = await req.json();
+
+    // Validate required fields
     const { 
       name, 
-      price, 
+      price,
       images, 
       colorId, 
       sizeId, 
@@ -42,24 +45,33 @@ export async function POST(
       return new NextResponse("Store id is required", { status: 400 });
     }
 
+    // Format price to always have 2 decimal places
+    const formattedPrice = Number(parseFloat(price.toString()).toFixed(2));
+
     const product = await prismadb.product.create({
       data: {
         name,
-        price,
-        isFeatured,
-        isArchived,
+        price: formattedPrice,
+        storeId: params.storeId,
         colorId,
         sizeId,
-        storeId: params.storeId,
+        isFeatured,
+        isArchived,
         images: {
           createMany: {
             data: images
           }
         },
-        taxons: {
-          connect: taxonIds.map((id: string) => ({ id }))
-        }
+        ...(taxonIds && taxonIds.length > 0 ? {
+          taxons: {
+            connect: taxonIds.map((id: string) => ({ id }))
+          }
+        } : {})
       },
+      include: {
+        images: true,
+        taxons: true
+      }
     });
   
     return NextResponse.json(product);
@@ -74,21 +86,34 @@ export async function GET(
   { params }: { params: { storeId: string } }
 ) {
   try {
+    const { searchParams } = new URL(req.url);
+    const colorId = searchParams.get('colorId') || undefined;
+    const sizeId = searchParams.get('sizeId') || undefined;
+    const isFeatured = searchParams.get('isFeatured');
+
+    if (!params.storeId) {
+      return new NextResponse("Store id is required", { status: 400 });
+    }
+
     const products = await prismadb.product.findMany({
       where: {
-        storeId: params.storeId
+        storeId: params.storeId,
+        colorId,
+        sizeId,
+        isFeatured: isFeatured ? true : undefined,
+        isArchived: false,
       },
       include: {
-        size: true,
-        color: true,
         images: true,
-        taxons: true
+        color: true,
+        size: true,
+        taxons: true,
       },
       orderBy: {
-        createdAt: 'desc'
+        createdAt: 'desc',
       }
     });
-
+  
     return NextResponse.json(products);
   } catch (error) {
     console.log('[PRODUCTS_GET]', error);

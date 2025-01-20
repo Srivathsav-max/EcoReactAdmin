@@ -27,9 +27,32 @@ import { AlertModal } from "@/components/modals/alert-modal"
 import { ApiAlert } from "@/components/ui/api-alert"
 import { useOrigin } from "@/hooks/use-origin"
 import { ApiDocs } from "./api-docs"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const currencies = [
+  { value: "USD", label: "US Dollar ($)" },
+  { value: "EUR", label: "Euro (€)" },
+  { value: "GBP", label: "British Pound (£)" },
+  // Add more currencies as needed
+];
+
+const locales = [
+  { value: "en-US", label: "English (US)" },
+  { value: "en-GB", label: "English (UK)" },
+  { value: "fr-FR", label: "French" },
+  // Add more locales as needed
+];
 
 const formSchema = z.object({
   name: z.string().min(2),
+  currency: z.string().min(1),
+  locale: z.string().min(1),
 });
 
 type SettingsFormValues = z.infer<typeof formSchema>
@@ -50,13 +73,21 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData
+    defaultValues: {
+      name: initialData.name,
+      currency: initialData.currency || 'USD',
+      locale: initialData.locale || 'en-US',
+    }
   });
 
   const onSubmit = async (data: SettingsFormValues) => {
     try {
       setLoading(true);
-      await axios.patch(`/api/stores/${params.storeId}`, data);
+      await axios.patch(`/api/stores/${params.storeId}`, {
+        name: data.name,
+        currency: data.currency,
+        locale: data.locale,
+      });
       router.refresh();
       toast.success('Store updated.');
     } catch (error: any) {
@@ -120,6 +151,64 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({
                   <FormControl>
                     <Input disabled={loading} placeholder="Store name" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="currency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Currency</FormLabel>
+                  <Select 
+                    disabled={loading} 
+                    onValueChange={field.onChange} 
+                    value={field.value} 
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue defaultValue={field.value} placeholder="Select a currency" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {currencies.map((currency) => (
+                        <SelectItem key={currency.value} value={currency.value}>
+                          {currency.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="locale"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Locale</FormLabel>
+                  <Select 
+                    disabled={loading} 
+                    onValueChange={field.onChange} 
+                    value={field.value} 
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue defaultValue={field.value} placeholder="Select a locale" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {locales.map((locale) => (
+                        <SelectItem key={locale.value} value={locale.value}>
+                          {locale.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

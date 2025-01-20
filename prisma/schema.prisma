@@ -12,6 +12,8 @@ model Store {
   id         String      @id @default(uuid())
   name       String
   userId     String
+  currency   String?     @default("USD")  // Make it optional with ?
+  locale     String?     @default("en-US") // Make it optional with ?
   billboards Billboard[] @relation("StoreToBillboard")
   products   Product[]   @relation("StoreToProduct")
   sizes      Size[]      @relation("StoreToSize")
@@ -21,6 +23,8 @@ model Store {
   taxonomies Taxonomy[]  @relation("StoreToTaxonomy")
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+
+  @@index([userId])
 }
 
 model Billboard {
@@ -52,7 +56,7 @@ model Product {
   orderItems OrderItem[] // Relation to Order model
   taxons     Taxon[] // New relation to Taxon model
   createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  updatedAt  DateTime    @default(now())
 
   @@index([storeId])
   @@index([sizeId])
@@ -68,7 +72,7 @@ model Order {
   phone      String      @default("")
   address    String      @default("")
   createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  updatedAt  DateTime    @default(now())
 
   @@index([storeId])
 }
@@ -93,7 +97,7 @@ model Size {
   value     String
   products  Product[] // Relation to Product model
   createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  updatedAt DateTime  @default(now())
 
   @@index([storeId])
 }
@@ -106,7 +110,7 @@ model Color {
   value     String
   products  Product[] // Relation to Product model
   createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  updatedAt DateTime  @default(now())
 
   @@index([storeId])
 }
@@ -203,7 +207,7 @@ model Taxon {
   products Product[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now())
 
   @@index([taxonomyId])
   @@index([parentId])

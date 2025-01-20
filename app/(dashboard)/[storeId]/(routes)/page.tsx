@@ -9,8 +9,9 @@ import { getSalesCount } from "@/actions/get-sales-count";
 import { getGraphRevenue } from "@/actions/get-graph-revenue";
 import { getStockCount } from "@/actions/get-stock-count";
 import getCustomersCount from "@/actions/get-customers-count";
-import { formatter } from "@/lib/utils";
 import { getGraphCustomers } from "@/actions/get-graph-customers";
+import prismadb from "@/lib/prismadb";
+import { getFormatter, formatPrice } from "@/lib/utils";
 
 interface DashboardPageProps {
   params: {
@@ -21,6 +22,22 @@ interface DashboardPageProps {
 const DashboardPage: React.FC<DashboardPageProps> = async ({ 
   params
 }) => {
+  // Fetch store settings first
+  const store = await prismadb.store.findFirst({
+    where: {
+      id: params.storeId
+    }
+  });
+
+  if (!store) {
+    throw new Error("Store not found");
+  }
+
+  const formatter = getFormatter({
+    currency: store.currency || 'USD',
+    locale: store.locale || 'en-US'
+  });
+
   const totalRevenue = await getTotalRevenue(params.storeId);
   const graphRevenue = await getGraphRevenue(params.storeId);
   const graphCustomers = await getGraphCustomers(params.storeId);
