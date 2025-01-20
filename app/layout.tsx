@@ -6,6 +6,7 @@ import { ModalProvider } from '@/providers/modal-provider'
 import { ToastProvider } from '@/providers/toast-provider'
 import { ThemeProvider } from "@/components/providers/theme-provider"
 import { Footer } from '@/components/footer'
+import { ApolloWrapper } from '@/providers/apollo-provider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -24,13 +25,15 @@ export default function RootLayout({
       <body className={inter.className}>
         <ToastProvider />
         <ModalProvider />
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-        >
-          {children}
-        </ThemeProvider>
+        <ApolloWrapper>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+          >
+            {children}
+          </ThemeProvider>
+        </ApolloWrapper>
         <Footer />
       </body>
     </html>
