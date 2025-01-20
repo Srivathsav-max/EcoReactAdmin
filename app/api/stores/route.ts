@@ -17,6 +17,15 @@ export async function GET() {
     const stores = await prismadb.store.findMany({
       where: {
         userId,
+      },
+      select: {
+        id: true,
+        name: true,
+        userId: true,
+        currency: true,
+        locale: true,
+        createdAt: true,
+        updatedAt: true,
       }
     });
   
@@ -39,7 +48,7 @@ export async function POST(req: Request) {
     const userId = decoded.sub;
 
     const body = await req.json();
-    const { name } = body;
+    const { name, currency = 'USD', locale = 'en-US' } = body;
 
     if (!name) {
       return new NextResponse("Name is required", { status: 400 });
@@ -49,6 +58,8 @@ export async function POST(req: Request) {
       data: {
         name,
         userId,
+        currency,
+        locale,
       }
     });
   
