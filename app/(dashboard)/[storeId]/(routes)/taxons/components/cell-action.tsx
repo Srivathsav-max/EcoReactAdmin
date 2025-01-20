@@ -14,48 +14,48 @@ import {
   DropdownMenuLabel, 
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { useCategoryModal } from "@/hooks/use-category-modal";
 import { AlertModal } from "@/components/modals/alert-modal";
 
-import { CategoryColumn } from "./columns";
+import { TaxonColumn } from "./columns";
 
 interface CellActionProps {
-  data: CategoryColumn;
+  data: TaxonColumn;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({
-  data,
+  data
 }) => {
   const router = useRouter();
   const params = useParams();
-  const [open, setOpen] = useState(false);
+  
   const [loading, setLoading] = useState(false);
-
-  const onConfirm = async () => {
-    try {
-      setLoading(true);
-      await axios.delete(`/api/${params.storeId}/categories/${data.id}`);
-      toast.success('Category deleted.');
-      router.refresh();
-    } catch (error) {
-      toast.error('Make sure you removed all products using this category first.');
-    } finally {
-      setOpen(false);
-      setLoading(false);
-    }
-  };
+  const [open, setOpen] = useState(false);
 
   const onCopy = (id: string) => {
     navigator.clipboard.writeText(id);
-    toast.success('Category ID copied to clipboard.');
-  }
+    toast.success('Taxon ID copied to clipboard.');
+  };
+
+  const onDelete = async () => {
+    try {
+      setLoading(true);
+      await axios.delete(`/api/${params.storeId}/taxons/${data.id}`);
+      router.refresh();
+      toast.success('Taxon deleted.');
+    } catch (error) {
+      toast.error('Make sure you removed all products using this taxon first.');
+    } finally {
+      setLoading(false);
+      setOpen(false);
+    }
+  };
 
   return (
     <>
       <AlertModal 
         isOpen={open} 
         onClose={() => setOpen(false)}
-        onConfirm={onConfirm}
+        onConfirm={onDelete}
         loading={loading}
       />
       <DropdownMenu>
@@ -67,20 +67,17 @@ export const CellAction: React.FC<CellActionProps> = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem
-            onClick={() => onCopy(data.id)}
-          >
-            <Copy className="mr-2 h-4 w-4" /> Copy Id
+          <DropdownMenuItem onClick={() => onCopy(data.id)}>
+            <Copy className="mr-2 h-4 w-4" />
+            Copy Id
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => router.push(`/${params.storeId}/categories/${data.id}`)}
-          >
-            <Edit className="mr-2 h-4 w-4" /> Update
+          <DropdownMenuItem onClick={() => router.push(`/${params.storeId}/taxons/${data.id}`)}>
+            <Edit className="mr-2 h-4 w-4" />
+            Update
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setOpen(true)}
-          >
-            <Trash className="mr-2 h-4 w-4" /> Delete
+          <DropdownMenuItem onClick={() => setOpen(true)}>
+            <Trash className="mr-2 h-4 w-4" />
+            Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
