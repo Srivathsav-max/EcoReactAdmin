@@ -18,6 +18,8 @@ export async function GET(
         id: true,
         name: true,
         userId: true,
+        currency: true,
+        locale: true,
         createdAt: true,
         updatedAt: true
       }
