@@ -30,12 +30,14 @@ const formSchema = z.object({
 
 type TaxonomyFormValues = z.infer<typeof formSchema>;
 
+interface TaxonomyWithTaxons extends Taxonomy {
+  taxons: (Taxon & {
+    children?: Taxon[];
+  })[];
+}
+
 interface TaxonomyFormProps {
-  initialData: Taxonomy & {
-    rootTaxon?: Taxon & {
-      children: Taxon[];
-    };
-  } | null;
+  initialData: TaxonomyWithTaxons | null;
 }
 
 export const TaxonomyForm: React.FC<TaxonomyFormProps> = ({

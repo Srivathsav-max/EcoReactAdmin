@@ -6,8 +6,8 @@ import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { toast } from "react-hot-toast"
-import { Trash } from "lucide-react"
-import { Category, Color, Image, Product, Size, Taxonomy, Taxon } from "@prisma/client"
+import { Trash, X } from "lucide-react"
+import { Color, Image, Product, Size, Taxonomy, Taxon } from "@prisma/client"
 import { useParams, useRouter } from "next/navigation"
 
 import { Input } from "@/components/ui/input"
@@ -29,6 +29,7 @@ import ImageUpload from "@/components/ui/image-upload"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getMaskedImageUrl } from '@/lib/appwrite-config';
 import { TaxonPicker } from "./taxon-picker";
+import { Decimal } from "@prisma/client/runtime/library";
 
 const formSchema = z.object({
   name: z.string().min(1),
@@ -41,22 +42,23 @@ const formSchema = z.object({
   sizeId: z.string().min(1),
   isFeatured: z.boolean().default(false).optional(),
   isArchived: z.boolean().default(false).optional(),
-  taxonIds: z.array(z.string()).min(1, "At least one category is required"),
+  taxonIds: z.array(z.string()).default([]),
 });
 
 type ProductFormValues = z.infer<typeof formSchema>
 
 interface ProductFormProps {
   initialData: (Omit<Product, 'price'> & {
-    price: string;  // Accept string
+    price: Decimal;
     images: Image[];
+    taxons: Taxon[];
   }) | null;
   colors: Color[];
   sizes: Size[];
   taxonomies: (Taxonomy & {
-    rootTaxon: Taxon & {
-      children: Taxon[];
-    };
+    taxons: (Taxon & {
+      children?: Taxon[];
+    })[];
   })[];
   initialTaxons?: Taxon[];
 };
@@ -79,7 +81,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const toastMessage = initialData ? 'Product updated.' : 'Product created.';
   const action = initialData ? 'Save changes' : 'Create';
 
-  // Transform initial data to use masked URLs
+  // Transform initial data to use masked URLs and handle Decimal price
   const formattedInitialData = initialData ? {
     ...initialData,
     images: initialData.images.map(img => ({
@@ -91,7 +93,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   // Use formattedInitialData instead of initialData
   const defaultValues = formattedInitialData ? {
     ...formattedInitialData,
-    price: parseFloat(formattedInitialData.price),
+    price: parseFloat(String(formattedInitialData.price)), // Convert Decimal to string first
     taxonIds: initialTaxons?.map(taxon => taxon.id) || [],
   } : {
     name: '',
@@ -316,17 +318,56 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               control={form.control}
               name="taxonIds"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categories</FormLabel>
-                  <FormControl>
-                    <TaxonPicker
-                      taxonomies={taxonomies}
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={loading}
-                    />
-                  </FormControl>
-                  <FormMessage />
+                <FormItem className="col-span-2">
+                  <FormLabel>Classifications</FormLabel>
+                  <FormDescription>
+                    Select multiple categories from different taxonomies to classify this product.
+                  </FormDescription>
+                  <div className="space-y-4">
+                    <FormControl>
+                      <TaxonPicker
+                        taxonomies={taxonomies}
+                        value={field.value || []}
+                        onChange={field.onChange}
+                        disabled={loading}
+                      />
+                    </FormControl>
+                    {field.value?.length > 0 && (
+                      <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-slate-50 dark:bg-slate-900">
+                        {field.value.map(id => {
+                          const taxon = findTaxonById(taxonomies, id);
+                          const taxonomy = findTaxonomyByTaxonId(taxonomies, id);
+                          if (!taxon) return null;
+                          
+                          return (
+                            <div 
+                              key={id}
+                              className="flex items-center gap-1 text-xs px-2 py-1 rounded-full 
+                                       bg-white dark:bg-slate-800 border shadow-sm"
+                            >
+                              <span className="font-medium text-slate-600 dark:text-slate-300">
+                                {taxonomy?.name}
+                              </span>
+                              <span className="text-slate-400">/</span>
+                              <span className="text-slate-800 dark:text-slate-200">
+                                {taxon.name}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-4 w-4 p-0 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                onClick={() => field.onChange(field.value.filter(v => v !== id))}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <FormMessage />
+                  </div>
                 </FormItem>
               )}
             />
@@ -338,4 +379,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       </Form>
     </>
   );
+};
+
+// Helper functions to find taxon and taxonomy
+const findTaxonById = (taxonomies: any[], id: string): Taxon | null => {
+  for (const taxonomy of taxonomies) {
+    const found = findTaxonInHierarchy(taxonomy.taxons, id);
+    if (found) return found;
+  }
+  return null;
+};
+
+const findTaxonInHierarchy = (taxons: any[], id: string): Taxon | null => {
+  for (const taxon of taxons) {
+    if (taxon.id === id) return taxon;
+    if (taxon.children) {
+      const found = findTaxonInHierarchy(taxon.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
+const findTaxonomyByTaxonId = (taxonomies: any[], taxonId: string): Taxonomy | null => {
+  return taxonomies.find(taxonomy => 
+    findTaxonInHierarchy(taxonomy.taxons, taxonId)
+  ) || null;
 };

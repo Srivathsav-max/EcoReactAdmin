@@ -2,7 +2,11 @@ import { format } from "date-fns";
 import prismadb from "@/lib/prismadb";
 import { TaxonomiesClient } from "./components/client";
 
-const TaxonomiesPage = async ({ params }: { params: { storeId: string } }) => {
+const TaxonomiesPage = async ({
+  params
+}: {
+  params: { storeId: string }
+}) => {
   const taxonomies = await prismadb.taxonomy.findMany({
     where: {
       storeId: params.storeId

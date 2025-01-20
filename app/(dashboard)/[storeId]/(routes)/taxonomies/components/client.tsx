@@ -1,32 +1,35 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useParams, useRouter } from "next/navigation"; // Add useParams import
+import { useParams, useRouter } from "next/navigation";
+
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import { Heading } from "@/components/ui/heading";
 import { Separator } from "@/components/ui/separator";
-import { DataTable } from "@/components/ui/data-table";
-import { columns } from "./columns";
+import { columns, TaxonomyColumn } from "./columns";
 
 interface TaxonomiesClientProps {
   data: {
     id: string;
     name: string;
-    rootTaxon: string;
+    taxonsCount: number; // Changed from rootTaxon to taxonsCount
     createdAt: string;
   }[];
 }
 
-export const TaxonomiesClient: React.FC<TaxonomiesClientProps> = ({ data }) => {
+export const TaxonomiesClient: React.FC<TaxonomiesClientProps> = ({
+  data
+}) => {
   const router = useRouter();
-  const params = useParams(); // Add this line
+  const params = useParams();
 
   return (
     <>
       <div className="flex items-center justify-between">
         <Heading 
           title={`Taxonomies (${data.length})`}
-          description="Manage your store taxonomies"
+          description="Manage taxonomies for your store"
         />
         <Button onClick={() => router.push(`/${params.storeId}/taxonomies/new`)}>
           <Plus className="mr-2 h-4 w-4" />

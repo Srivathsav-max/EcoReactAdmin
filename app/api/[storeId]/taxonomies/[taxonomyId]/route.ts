@@ -3,26 +3,41 @@ import prismadb from "@/lib/prismadb";
 
 export async function GET(
   req: Request,
-  { params }: { params: { taxonomyId: string } }
+  { params }: { params: { taxonomyId: string, storeId: string } }
 ) {
   try {
     if (!params.taxonomyId) {
       return new NextResponse("Taxonomy ID is required", { status: 400 });
     }
 
-    const taxonomy = await prismadb.taxonomy.findUnique({
+    // First verify the taxonomy belongs to the store
+    const taxonomy = await prismadb.taxonomy.findFirst({
       where: {
-        id: params.taxonomyId
+        id: params.taxonomyId,
+        AND: {
+          storeId: params.storeId
+        }
       },
       include: {
-        rootTaxon: {
+        taxons: {
+          where: {
+            parentId: null // Only get root level taxons
+          },
           include: {
-            children: true
+            children: {
+              include: {
+                children: true
+              }
+            }
           }
         }
       }
     });
 
+    if (!taxonomy) {
+      return new NextResponse("Taxonomy not found", { status: 404 });
+    }
+  
     return NextResponse.json(taxonomy);
   } catch (error) {
     console.log('[TAXONOMY_GET]', error);

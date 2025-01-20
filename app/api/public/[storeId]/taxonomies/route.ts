@@ -11,7 +11,10 @@ export async function GET(
         storeId: params.storeId,
       },
       include: {
-        rootTaxon: {
+        taxons: {
+          where: {
+            parentId: null // Only get root level taxons
+          },
           include: {
             children: {
               include: {
@@ -19,19 +22,22 @@ export async function GET(
                 products: {
                   include: {
                     images: true,
-                    taxons: true,
+                    taxons: true
                   }
                 }
               }
             }
           }
         }
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
 
     return NextResponse.json(taxonomies);
   } catch (error) {
-    console.log('[PUBLIC_TAXONOMIES_GET]', error);
+    console.log('[TAXONOMIES_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }

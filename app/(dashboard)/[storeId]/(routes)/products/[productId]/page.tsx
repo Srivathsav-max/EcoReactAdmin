@@ -1,5 +1,6 @@
 import prismadb from "@/lib/prismadb";
 import { ProductForm } from "./components/product-form";
+import { Decimal } from "@prisma/client/runtime/library";
 
 const ProductPage = async ({
   params
@@ -16,10 +17,11 @@ const ProductPage = async ({
     }
   });
 
-  // Format the product data while maintaining the original Decimal type
+  // Only format the product if it exists, keeping the Decimal type intact
   const formattedProduct = product ? {
     ...product,
-    price: product.price.toString() // Convert Decimal to string
+    // Preserve the Decimal type for price
+    price: new Decimal(product.price.toString())
   } : null;
 
   const sizes = await prismadb.size.findMany({

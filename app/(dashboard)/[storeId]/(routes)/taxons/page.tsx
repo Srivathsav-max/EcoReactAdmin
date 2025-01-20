@@ -1,59 +1,44 @@
 import prismadb from "@/lib/prismadb";
 import { TaxonsClient } from "./components/client";
+import { Taxonomy, Taxon } from "@prisma/client";
+
+interface TaxonomyWithTaxons extends Taxonomy {
+  taxons: (Taxon & {
+    children: Taxon[];
+  })[];
+}
 
 const TaxonsPage = async ({
   params
 }: {
   params: { storeId: string }
 }) => {
-  // Get all taxons for this store grouped by taxonomy
-  const taxons = await prismadb.taxon.findMany({
+  const taxonomiesWithTaxons = await prismadb.taxonomy.findMany({
     where: {
-      taxonomy: {
-        storeId: params.storeId
-      }
+      storeId: params.storeId,
     },
     include: {
-      taxonomy: true,
-      children: {
+      taxons: {
+        where: {
+          parentId: null // Only get root level taxons
+        },
         include: {
           children: {
             include: {
               children: true
             }
           }
+        },
+        orderBy: {
+          position: 'asc'
         }
-      },
-      parent: true
-    },
-    orderBy: {
-      createdAt: 'desc'
+      }
     }
-  });
+  }) as TaxonomyWithTaxons[];
 
-  // Group taxons by taxonomy
-  const taxonomiesWithTaxons = Object.values(
-    taxons.reduce((acc: any, taxon) => {
-      if (!acc[taxon.taxonomy?.id || '']) {
-        acc[taxon.taxonomy?.id || ''] = {
-          id: taxon.taxonomy?.id,
-          name: taxon.taxonomy?.name,
-          taxons: []
-        };
-      }
-      // Only add root level taxons (those without parents)
-      if (!taxon.parentId) {
-        acc[taxon.taxonomy?.id || ''].taxons.push(taxon);
-      }
-      return acc;
-    }, {})
-  );
-
-  // Fetch products for product counts
   const products = await prismadb.product.findMany({
     where: {
-      storeId: params.storeId,
-      isArchived: false
+      storeId: params.storeId
     },
     include: {
       taxons: true

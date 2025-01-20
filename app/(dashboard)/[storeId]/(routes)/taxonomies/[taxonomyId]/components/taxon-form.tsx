@@ -26,12 +26,16 @@ const formSchema = z.object({
   description: z.string().optional(),
 });
 
+interface TaxonWithChildren extends Taxon {
+  children?: TaxonWithChildren[];
+}
+
 interface TaxonFormProps {
   taxonomyId: string;
   storeId: string;
   parentId?: string;
-  initialData?: Taxon;
-  children?: Taxon[];
+  initialData?: TaxonWithChildren;
+  childTaxons?: TaxonWithChildren[]; 
   onSuccess?: () => void;
 }
 
@@ -40,7 +44,7 @@ export const TaxonForm: React.FC<TaxonFormProps> = ({
   storeId,
   parentId,
   initialData,
-  children = [],
+  childTaxons = [],
   onSuccess
 }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -60,10 +64,13 @@ export const TaxonForm: React.FC<TaxonFormProps> = ({
     try {
       setIsLoading(true);
       if (initialData) {
-        await axios.patch(`/api/${storeId}/taxonomies/${taxonomyId}/taxons/${initialData.id}`, values);
+        // Updated API path
+        await axios.patch(`/api/${storeId}/taxons/${initialData.id}`, values);
       } else {
-        await axios.post(`/api/${storeId}/taxonomies/${taxonomyId}/taxons`, {
+        // Updated API path
+        await axios.post(`/api/${storeId}/taxons`, {
           ...values,
+          taxonomyId,
           parentId,
         });
       }
@@ -130,16 +137,16 @@ export const TaxonForm: React.FC<TaxonFormProps> = ({
             </div>
           )}
 
-          {isExpanded && children.length > 0 && (
+          {isExpanded && childTaxons.length > 0 && (
             <div className="mt-4">
-              {children.map((child) => (
+              {childTaxons.map((child) => (
                 <TaxonForm
                   key={child.id}
                   taxonomyId={taxonomyId}
                   storeId={storeId}
                   parentId={initialData.id}
                   initialData={child}
-                  children={child.children}
+                  childTaxons={child.children}
                   onSuccess={onSuccess}
                 />
               ))}

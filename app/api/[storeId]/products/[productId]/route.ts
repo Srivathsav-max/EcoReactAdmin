@@ -18,9 +18,9 @@ export async function GET(
       },
       include: {
         images: true,
-        category: true,
         size: true,
         color: true,
+        taxons: true // Replace category with taxons
       }
     });
   
@@ -83,8 +83,7 @@ export async function PATCH(
     if (!session?.user) return new NextResponse("Unauthorized", { status: 403 });
 
     const body = await req.json();
-
-    const { name, price, categoryId, images, colorId, sizeId, isFeatured, isArchived } = body;
+    const { name, price, taxonIds, images, colorId, sizeId, isFeatured, isArchived } = body;
 
     if (!params.productId) {
       return new NextResponse("Product id is required", { status: 400 });
@@ -100,10 +99,6 @@ export async function PATCH(
 
     if (!price) {
       return new NextResponse("Price is required", { status: 400 });
-    }
-
-    if (!categoryId) {
-      return new NextResponse("Category id is required", { status: 400 });
     }
 
     if (!colorId) {
@@ -138,21 +133,23 @@ export async function PATCH(
         id: params.productId
       },
       data: {
-        name: body.name,
-        price: body.price,
-        categoryId: body.categoryId,
-        colorId: body.colorId,
-        sizeId: body.sizeId,
+        name,
+        price,
+        colorId,
+        sizeId,
         images: {
           createMany: {
-            data: body.images.map((image: { url: string, fileId: string }) => ({
+            data: images.map((image: { url: string, fileId: string }) => ({
               url: image.url,
               fileId: image.fileId
             }))
           }
         },
-        isFeatured: body.isFeatured,
-        isArchived: body.isArchived,
+        isFeatured,
+        isArchived,
+        taxons: {
+          set: taxonIds?.map((id: string) => ({ id })) || []
+        }
       },
     });
 

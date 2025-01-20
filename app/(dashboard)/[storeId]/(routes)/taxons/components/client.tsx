@@ -2,19 +2,22 @@
 
 import { Plus } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import { Taxon, Taxonomy } from "@prisma/client"; // Add this import
+
 import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { Separator } from "@/components/ui/separator";
 import { TaxonTree } from "@/components/ui/taxon-tree";
-import { Taxonomy } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface TaxonsClientProps {
-  taxonomies: (Taxonomy & {
-    taxons: (Taxon & {
-      children: Taxon[];
-    })[];
+interface TaxonomyWithTaxons extends Taxonomy {
+  taxons: (Taxon & {
+    children: Taxon[];
   })[];
+}
+
+interface TaxonsClientProps {
+  taxonomies: TaxonomyWithTaxons[];
   products: any[];
 }
 
@@ -33,7 +36,7 @@ export const TaxonsClient: React.FC<TaxonsClientProps> = ({
     <>
       <div className="flex items-center justify-between">
         <Heading
-          title="Taxonomy Structure"
+          title="Taxon"
           description="Manage your store's taxonomy hierarchy"
         />
         <Button onClick={() => router.push(`/${params.storeId}/taxons/new`)}>

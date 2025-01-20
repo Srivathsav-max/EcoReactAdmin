@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { EyeIcon, EyeOffIcon, Loader2 } from "lucide-react";
 import Link from "next/link";
 
-export default function SignInPage() {
+const SignInPage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -40,45 +40,44 @@ export default function SignInPage() {
     return emailRegex.test(email);
   };
 
-  // Handle email validation including database check
-  const validateEmailWithServer = async (email: string) => {
-    if (!validateEmail(email)) {
-      setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
-      setIsEmailValid(false);
-      setIsEmailExists(false);
-      return;
-    }
-
-    try {
-      setIsEmailChecking(true);
-      const response = await fetch('/api/auth/validate-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-
-      const data = await response.json();
-      
-      if (data.exists) {
-        setFieldErrors(prev => ({ ...prev, email: '' }));
-        setIsEmailValid(true);
-        setIsEmailExists(true);
-      } else {
-        setFieldErrors(prev => ({ ...prev, email: 'Email not found' }));
-        setIsEmailValid(false);
-        setIsEmailExists(false);
-      }
-    } catch (error) {
-      setFieldErrors(prev => ({ ...prev, email: 'Error validating email' }));
-      setIsEmailValid(false);
-      setIsEmailExists(false);
-    } finally {
-      setIsEmailChecking(false);
-    }
-  };
-
   // Debounced email validation
   useEffect(() => {
+    const validateEmailWithServer = async (email: string) => {
+      if (!validateEmail(email)) {
+        setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
+        setIsEmailValid(false);
+        setIsEmailExists(false);
+        return;
+      }
+
+      try {
+        setIsEmailChecking(true);
+        const response = await fetch('/api/auth/validate-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+        
+        if (data.exists) {
+          setFieldErrors(prev => ({ ...prev, email: '' }));
+          setIsEmailValid(true);
+          setIsEmailExists(true);
+        } else {
+          setFieldErrors(prev => ({ ...prev, email: 'Email not found' }));
+          setIsEmailValid(false);
+          setIsEmailExists(false);
+        }
+      } catch (error) {
+        setFieldErrors(prev => ({ ...prev, email: 'Error validating email' }));
+        setIsEmailValid(false);
+        setIsEmailExists(false);
+      } finally {
+        setIsEmailChecking(false);
+      }
+    };
+
     const timer = setTimeout(() => {
       if (formData.email && validateEmail(formData.email)) {
         validateEmailWithServer(formData.email);
@@ -262,4 +261,6 @@ export default function SignInPage() {
       </Card>
     </div>
   );
-}
+};
+
+export default SignInPage;
