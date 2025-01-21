@@ -1,3 +1,5 @@
+// Delete this file since it's duplicated
+
 "use client"
 
 import * as React from "react"

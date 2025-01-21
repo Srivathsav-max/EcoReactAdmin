@@ -16,13 +16,20 @@ const ProductPage = async ({
     throw new Error("Store not found");
   }
 
-  const product = await prismadb.product.findUnique({
+  const product = params.productId === "new" ? null : await prismadb.product.findUnique({
     where: {
       id: params.productId
     },
     include: {
       images: true,
-      taxons: true
+      taxons: true,
+      variants: {
+        include: {
+          color: true,
+          size: true,
+          stockItems: true
+        }
+      }
     }
   });
 
@@ -38,10 +45,25 @@ const ProductPage = async ({
     }
   });
 
-  // Convert Decimal to number for the form
+  const brands = await prismadb.brand.findMany();
+
+  // Format the variant data if it exists
   const formattedProduct = product ? {
     ...product,
-    price: parseFloat(product.price.toString())
+    price: product.price ? parseFloat(product.price.toString()) : 0,
+    costPrice: product.costPrice ? parseFloat(product.costPrice.toString()) : null,
+    compareAtPrice: product.compareAtPrice ? parseFloat(product.compareAtPrice.toString()) : null,
+    taxRate: product.taxRate ? parseFloat(product.taxRate.toString()) : null,
+    weight: product.weight ? parseFloat(product.weight.toString()) : null,
+    height: product.height ? parseFloat(product.height.toString()) : null,
+    width: product.width ? parseFloat(product.width.toString()) : null,
+    depth: product.depth ? parseFloat(product.depth.toString()) : null,
+    images: product.images,
+    taxons: product.taxons,
+    variants: product.variants?.map(variant => ({
+      ...variant,
+      price: parseFloat(variant.price.toString())
+    }))
   } : null;
 
   const taxonomies = await prismadb.taxonomy.findMany({
@@ -53,7 +75,7 @@ const ProductPage = async ({
         include: {
           children: {
             include: {
-              children: true // Goes 3 levels deep
+              children: true
             }
           }
         }
@@ -72,6 +94,7 @@ const ProductPage = async ({
           initialTaxons={product?.taxons || []}
           storeCurrency={store.currency || 'USD'}
           storeLocale={store.locale || 'en-US'}
+          brands={brands}
         />
       </div>
     </div>

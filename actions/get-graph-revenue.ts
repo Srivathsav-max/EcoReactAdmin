@@ -14,47 +14,48 @@ export const getGraphRevenue = async (storeId: string): Promise<GraphData[]> => 
     include: {
       orderItems: {
         include: {
-          product: true,
-        },
-      },
-    },
+          variant: {
+            select: {
+              price: true
+            }
+          }
+        }
+      }
+    }
   });
 
   const monthlyRevenue: { [key: number]: number } = {};
 
-  // Grouping the orders by month and summing the revenue
+  // Initialize all months to 0
+  for (let i = 0; i < 12; i++) {
+    monthlyRevenue[i] = 0;
+  }
+
+  // Group orders by month and sum the revenue
   for (const order of paidOrders) {
-    const month = order.createdAt.getMonth(); // 0 for Jan, 1 for Feb, ...
-    let revenueForOrder = 0;
-
-    for (const item of order.orderItems) {
-      revenueForOrder += item.product.price.toNumber();
-    }
-
-    // Adding the revenue for this order to the respective month
-    monthlyRevenue[month] = (monthlyRevenue[month] || 0) + revenueForOrder;
+    const month = new Date(order.createdAt).getMonth();
+    const orderTotal = order.orderItems.reduce((sum, item) => {
+      return sum + (item.price?.toNumber() || 0);
+    }, 0);
+    
+    monthlyRevenue[month] += orderTotal;
   }
 
-  // Converting the grouped data into the format expected by the graph
+  // Format the data for the graph
   const graphData: GraphData[] = [
-    { name: "Jan", total: 0 },
-    { name: "Feb", total: 0 },
-    { name: "Mar", total: 0 },
-    { name: "Apr", total: 0 },
-    { name: "May", total: 0 },
-    { name: "Jun", total: 0 },
-    { name: "Jul", total: 0 },
-    { name: "Aug", total: 0 },
-    { name: "Sep", total: 0 },
-    { name: "Oct", total: 0 },
-    { name: "Nov", total: 0 },
-    { name: "Dec", total: 0 },
+    { name: "Jan", total: monthlyRevenue[0] },
+    { name: "Feb", total: monthlyRevenue[1] },
+    { name: "Mar", total: monthlyRevenue[2] },
+    { name: "Apr", total: monthlyRevenue[3] },
+    { name: "May", total: monthlyRevenue[4] },
+    { name: "Jun", total: monthlyRevenue[5] },
+    { name: "Jul", total: monthlyRevenue[6] },
+    { name: "Aug", total: monthlyRevenue[7] },
+    { name: "Sep", total: monthlyRevenue[8] },
+    { name: "Oct", total: monthlyRevenue[9] },
+    { name: "Nov", total: monthlyRevenue[10] },
+    { name: "Dec", total: monthlyRevenue[11] },
   ];
-
-  // Filling in the revenue data
-  for (const month in monthlyRevenue) {
-    graphData[parseInt(month)].total = monthlyRevenue[parseInt(month)];
-  }
 
   return graphData;
 };

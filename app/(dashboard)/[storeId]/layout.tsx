@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import prismadb from '@/lib/prismadb';
-import NavbarWrapper from "@/components/navbar-wrapper";
-import { verifyAuth } from '@/lib/auth';  // Add your custom auth verification
+import { Sidebar } from "@/components/sidebar";
+import { verifyAuth } from '@/lib/auth';
+import Navbar from '@/components/navbar';
 
 export default async function DashboardLayout({
   children,
@@ -24,21 +25,32 @@ export default async function DashboardLayout({
     redirect('/sign-in');
   }
 
-  const store = await prismadb.store.findFirst({ 
+  const store = await prismadb.store.findFirst({
     where: {
       id: params.storeId,
-      userId: session.user.id,  // Use the user ID from your custom session
+      userId: session.user.id,
     }
-   });
+  });
 
   if (!store) {
     redirect('/');
-  };
+  }
+
+  const stores = await prismadb.store.findMany({
+    where: {
+      userId: session.user.id,
+    }
+  });
 
   return (
-    <>
-      <NavbarWrapper />
-      {children}
-    </>
+    <div className="relative h-full">
+      <div className="hidden h-full md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 z-[80] bg-background">
+        <Sidebar store={store} />
+      </div>
+      <main className="md:pl-72">
+        <Navbar stores={stores} />
+        {children}
+      </main>
+    </div>
   );
-};
+}

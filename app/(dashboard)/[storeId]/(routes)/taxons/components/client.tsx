@@ -11,9 +11,11 @@ import { TaxonTree } from "@/components/ui/taxon-tree";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface TaxonomyWithTaxons extends Taxonomy {
-  taxons: (Taxon & {
-    children: Taxon[];
-  })[];
+  taxons: TaxonWithChildren[];
+}
+
+interface TaxonWithChildren extends Taxon {
+  children: TaxonWithChildren[];
 }
 
 interface TaxonsClientProps {

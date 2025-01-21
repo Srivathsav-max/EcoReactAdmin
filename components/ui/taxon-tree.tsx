@@ -6,12 +6,12 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
+interface TaxonWithChildren extends Taxon {
+  children?: TaxonWithChildren[];
+}
+
 interface TaxonTreeProps {
-  taxon: Taxon & {
-    children?: (Taxon & {
-      children?: Taxon[];
-    })[];
-  };
+  taxon: TaxonWithChildren;
   level?: number;
   onSelect?: (taxon: Taxon) => void;
   onAddChild?: (parentId: string) => void;
@@ -27,7 +27,15 @@ export const TaxonTree: React.FC<TaxonTreeProps> = ({
   selectedId,
   products = []
 }) => {
+  // Move all hooks to the top
   const [isExpanded, setIsExpanded] = useState(true);
+  
+  // Then add the safety check
+  if (level > 100) {
+    console.warn('Maximum nesting level reached');
+    return null;
+  }
+
   const hasChildren = taxon.children && taxon.children.length > 0;
   const isSelected = selectedId === taxon.id;
 

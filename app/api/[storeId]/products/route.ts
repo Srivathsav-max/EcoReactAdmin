@@ -9,57 +9,79 @@ export async function POST(
   try {
     const body = await req.json();
 
-    // Validate required fields
     const { 
-      name, 
+      name,
+      description,
       price,
-      images, 
-      colorId, 
-      sizeId, 
-      isFeatured, 
+      images,
+      colorId,
+      sizeId,
+      isFeatured,
       isArchived,
-      taxonIds 
+      taxonIds,
+      // New fields
+      slug,
+      metaTitle,
+      metaDescription,
+      metaKeywords,
+      sku,
+      costPrice,
+      compareAtPrice,
+      status,
+      availableOn,
+      discontinueOn,
+      taxCategory,
+      shippingCategory,
+      weight,
+      height,
+      width,
+      depth,
     } = body;
 
     if (!name) {
       return new NextResponse("Name is required", { status: 400 });
     }
 
-    if (!price) {
-      return new NextResponse("Price is required", { status: 400 });
-    }
-
-    if (!colorId) {
-      return new NextResponse("Color id is required", { status: 400 });
-    }
-
-    if (!sizeId) {
-      return new NextResponse("Size id is required", { status: 400 });
-    }
-
-    if (!images || !images.length) {
-      return new NextResponse("Images are required", { status: 400 });
-    }
-
     if (!params.storeId) {
       return new NextResponse("Store id is required", { status: 400 });
     }
 
-    // Format price to always have 2 decimal places
-    const formattedPrice = Number(parseFloat(price.toString()).toFixed(2));
+    // Generate slug if not provided
+    const finalSlug = slug || name.toLowerCase().replace(/\s+/g, '-');
 
     const product = await prismadb.product.create({
       data: {
         name,
-        price: formattedPrice,
+        slug: finalSlug,
+        description,
         storeId: params.storeId,
+        price: price ? parseFloat(price) : null,
+        costPrice: costPrice ? parseFloat(costPrice) : null,
+        compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
+        status: status || 'draft',
+        metaTitle,
+        metaDescription,
+        metaKeywords,
+        sku,
+        availableOn,
+        discontinueOn,
+        taxCategory,
+        shippingCategory,
+        weight: weight ? parseFloat(weight) : null,
+        height: height ? parseFloat(height) : null,
+        width: width ? parseFloat(width) : null,
+        depth: depth ? parseFloat(depth) : null,
+        isMaster: true,
         colorId,
         sizeId,
         isFeatured,
         isArchived,
         images: {
           createMany: {
-            data: images
+            data: images.map((image: { url: string, fileId: string }) => ({
+              url: image.url,
+              fileId: image.fileId
+            }))
           }
         },
         ...(taxonIds && taxonIds.length > 0 ? {
@@ -98,16 +120,30 @@ export async function GET(
     const products = await prismadb.product.findMany({
       where: {
         storeId: params.storeId,
-        colorId,
-        sizeId,
-        isFeatured: isFeatured ? true : undefined,
-        isArchived: false,
+        status: isFeatured ? 'active' : undefined,
+        variants: {
+          some: {
+            AND: [
+              colorId ? { colorId } : {},
+              sizeId ? { sizeId } : {},
+            ]
+          }
+        }
       },
       include: {
         images: true,
-        color: true,
-        size: true,
-        taxons: true,
+        taxons: {
+          include: {
+            taxonomy: true
+          }
+        },
+        variants: {
+          include: {
+            size: true,
+            color: true,
+            stockItems: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc',

@@ -34,20 +34,25 @@ const ProductsPage = async ({
 
   const products = await prismadb.product.findMany({
     where: {
-      storeId: params.storeId
+      storeId: params.storeId,
     },
     include: {
-      size: true,
-      color: true,
       images: true,
       taxons: {
         include: {
-          taxonomy: true // Include the taxonomy relation
+          taxonomy: true
         }
       },
+      variants: {
+        include: {
+          size: true,
+          color: true,
+          stockItems: true
+        }
+      }
     },
     orderBy: {
-      createdAt: 'desc'
+      createdAt: 'desc',
     }
   });
 
@@ -57,38 +62,35 @@ const ProductsPage = async ({
     isDecimal: products[0]?.price instanceof Decimal,
   });
 
-  // Convert Decimal to number and format products
-  const formattedProducts = products.map((item) => {
-    console.log('Processing product:', {
-      id: item.id,
-      priceType: typeof item.price,
-      priceValue: item.price,
-      isDecimal: item.price instanceof Decimal
-    });
-
-    const numericPrice = formatDecimalPrice(item.price);
-    console.log('Converted price:', {
-      before: item.price,
-      after: numericPrice
-    });
-
-    const categories = item.taxons.map(taxon => 
+  const formattedProducts = products.map((product) => {
+    const mainVariant = product.variants[0];
+    const numericPrice = product.price ? formatDecimalPrice(product.price) : 0;
+    const categories = product.taxons.map(taxon => 
       `${taxon.taxonomy?.name || 'Unknown'}: ${taxon.name}`
     ).join(", ");
 
     return {
-      id: item.id,
-      name: item.name,
-      isFeatured: item.isFeatured,
-      isArchived: item.isArchived,
+      id: product.id,
+      name: product.name,
       price: numericPrice.toString(),
       priceFormatted: formatter.format(numericPrice),
       currencySymbol: store.currency === 'USD' ? '$' : '€',
       rawPrice: numericPrice,
-      size: item.size.name,
-      color: item.color.value,
+      size: mainVariant?.size?.name || 'N/A',
+      color: mainVariant?.color?.name || 'N/A',
+      isFeatured: product.status === 'active',
+      isArchived: product.status === 'archived',
       category: categories || "No categories",
-      createdAt: format(item.createdAt, 'MMMM do, yyyy'),
+      slug: product.slug,
+      sku: product.sku || 'N/A',
+      description: product.description || '',
+      metaTitle: product.metaTitle || '',
+      metaDescription: product.metaDescription || '',
+      status: product.status,
+      stockCount: mainVariant?.stockItems.reduce((total, item) => total + item.count, 0) || 0,
+      createdAt: format(product.createdAt, 'MMMM do, yyyy'),
+      availableOn: product.availableOn ? format(product.availableOn, 'MMMM do, yyyy') : 'Not set',
+      discontinueOn: product.discontinueOn ? format(product.discontinueOn, 'MMMM do, yyyy') : 'Not set',
     };
   });
 
@@ -98,7 +100,7 @@ const ProductsPage = async ({
       <div className="flex-1 space-y-4 p-8 pt-6">
         <ProductClient 
           data={formattedProducts} 
-          storeCurrency={store.currency || 'USD'} 
+          storeCurrency={store.currency || 'USD'}
         />
         <ApiList entityName="products" entityIdName="productId" />
       </div>

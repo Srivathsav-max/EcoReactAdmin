@@ -4,13 +4,22 @@ import * as z from "zod"
 import axios from "axios"
 import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, useFieldArray } from "react-hook-form"
 import { toast } from "react-hot-toast"
-import { Trash, X } from "lucide-react"
-import { Color, Image, Product, Size, Taxonomy, Taxon } from "@prisma/client"
+import { Trash, X, Plus, Edit } from "lucide-react"
+import { Color, Image, Product, Size, Taxonomy, Taxon, Variant } from "@prisma/client"
 import { useParams, useRouter } from "next/navigation"
-
+import { DataTable } from "@/components/ui/data-table"
+import { Separator } from "@/components/ui/separator"
+import { Heading } from "@/components/ui/heading"
+import { AlertModal } from "@/components/modals/alert-modal"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import ImageUpload from "@/components/ui/image-upload"
+import { Checkbox } from "@/components/ui/checkbox"
+import { getMaskedImageUrl } from '@/lib/appwrite-config';
+import { TaxonPicker } from "./taxon-picker";
+import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -21,15 +30,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { Separator } from "@/components/ui/separator"
-import { Heading } from "@/components/ui/heading"
-import { AlertModal } from "@/components/modals/alert-modal"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import ImageUpload from "@/components/ui/image-upload"
-import { Checkbox } from "@/components/ui/checkbox"
-import { getMaskedImageUrl } from '@/lib/appwrite-config';
-import { TaxonPicker } from "./taxon-picker";
-import { formatPrice } from "@/lib/utils";
 
 // Add this type definition
 type DecimalType = {
@@ -38,26 +38,65 @@ type DecimalType = {
 
 const formSchema = z.object({
   name: z.string().min(1),
+  slug: z.string().optional(),
+  description: z.string().optional(),
   images: z.object({ 
     url: z.string(),
     fileId: z.string()
   }).array(),
-  price: z.coerce.number().min(1),
-  colorId: z.string().min(1),
-  sizeId: z.string().min(1),
-  isFeatured: z.boolean().default(false).optional(),
-  isArchived: z.boolean().default(false).optional(),
+  price: z.coerce.number().nullable(),
+  costPrice: z.coerce.number().nullable().optional(),
+  compareAtPrice: z.coerce.number().nullable().optional(),
+  status: z.string().default('draft'),
+  metaTitle: z.string().optional(),
+  metaDescription: z.string().optional(),
+  metaKeywords: z.string().optional(),
+  sku: z.string().optional(),
+  availableOn: z.date().optional().nullable(),
+  discontinueOn: z.date().optional().nullable(),
+  taxCategory: z.string().optional(),
+  shippingCategory: z.string().optional(),
+  weight: z.coerce.number().optional(),
+  height: z.coerce.number().optional(),
+  width: z.coerce.number().optional(),
+  depth: z.coerce.number().optional(),
+  variants: z.array(z.object({
+    colorId: z.string().optional(),
+    sizeId: z.string().optional(),
+    price: z.coerce.number().min(0),
+    sku: z.string().optional(),
+    stockCount: z.number().min(0).default(0)
+  })).default([]),
   taxonIds: z.array(z.string()).default([]),
+  brandId: z.string().optional(),
 });
 
 type ProductFormValues = z.infer<typeof formSchema>
 
+interface ProductVariant extends Variant {
+  color?: Color | null;
+  size?: Size | null;
+  stockItems?: { count: number }[];
+}
+
 interface ProductFormProps {
-  initialData: (Omit<Product, 'price'> & {
-    price: DecimalType | number; // Changed from Decimal to DecimalType
+  initialData: {
+    id: string;
+    name: string;
+    description?: string | null;
     images: Image[];
+    price: number;
+    costPrice?: number | null;
+    compareAtPrice?: number | null;
+    taxRate?: number | null;
+    weight?: number | null;
+    height?: number | null;
+    width?: number | null;
+    depth?: number | null;
+    status: string;
     taxons: Taxon[];
-  }) | null;
+    variants?: ProductVariant[];
+  } | null;
   colors: Color[];
   sizes: Size[];
   taxonomies: (Taxonomy & {
@@ -68,6 +107,74 @@ interface ProductFormProps {
   initialTaxons?: Taxon[];
   storeCurrency: string;
   storeLocale: string;
+  brands?: { id: string; name: string }[];
+}
+
+const VariantsTable = ({ 
+  variants, 
+  storeId, 
+  onDelete 
+}: { 
+  variants: ProductVariant[], 
+  storeId: string,
+  onDelete: (id: string) => void
+}) => {
+  const router = useRouter();
+  
+  const columns = [
+    {
+      accessorKey: "name",
+      header: "Name",
+    },
+    {
+      accessorKey: "color",
+      header: "Color",
+      cell: ({ row }) => row.original.color?.name || 'N/A'
+    },
+    {
+      accessorKey: "size",
+      header: "Size",
+      cell: ({ row }) => row.original.size?.name || 'N/A'
+    },
+    {
+      accessorKey: "price",
+      header: "Price",
+      cell: ({ row }) => formatPrice(parseFloat(String(row.original.price)))
+    },
+    {
+      accessorKey: "sku",
+      header: "SKU",
+      cell: ({ row }) => row.original.sku || 'N/A'
+    },
+    {
+      accessorKey: "stockCount",
+      header: "Stock",
+      cell: ({ row }) => row.original.stockItems?.[0]?.count || 0
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push(`/${storeId}/variants/${row.original.id}`)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(row.original.id)}
+          >
+            <Trash className="h-4 w-4" />
+          </Button>
+        </div>
+      )
+    }
+  ];
+
+  return <DataTable columns={columns} data={variants} />;
 };
 
 export const ProductForm: React.FC<ProductFormProps> = ({
@@ -78,6 +185,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   initialTaxons = [],
   storeCurrency,
   storeLocale,
+  brands = []
 }) => {
   const params = useParams();
   const router = useRouter();
@@ -96,7 +204,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     images: initialData.images.map(img => ({
       ...img,
       url: getMaskedImageUrl(img.fileId)
-    }))
+    })),
+    variants: initialData.variants?.map(variant => ({
+      colorId: variant.colorId || '',
+      sizeId: variant.sizeId || '',
+      price: typeof variant.price === 'object' && 'toNumber' in variant.price 
+        ? variant.price.toNumber() 
+        : parseFloat(String(variant.price)) || 0,
+      sku: variant.sku || '',
+      stockCount: variant.stockItems?.[0]?.count || 0
+    })) || []
   } : null;
 
   const safeParsePrice = (price: DecimalType | number): number => {
@@ -106,7 +223,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     return typeof price === 'number' ? price : 0;
   };
 
-  // Use formattedInitialData instead of initialData
   const defaultValues = formattedInitialData ? {
     ...formattedInitialData,
     price: safeParsePrice(formattedInitialData.price),
@@ -115,17 +231,43 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     name: '',
     images: [],
     price: 0.00,
-    colorId: '',
-    sizeId: '',
-    isFeatured: false,
-    isArchived: false,
     taxonIds: [],
+    variants: []
   }
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues
   });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "variants"
+  });
+
+  // Add example options
+  const allColors = [
+    { id: "example-1", name: "Example - Red" },
+    { id: "example-2", name: "Example - Blue" },
+    ...colors
+  ];
+
+  const allSizes = [
+    { id: "example-1", name: "Example - Small" },
+    { id: "example-2", name: "Example - Medium" },
+    ...sizes
+  ];
+
+  // Add a function to handle variant addition with optional fields
+  const handleAddVariant = () => {
+    append({
+      colorId: undefined, // Make it optional
+      sizeId: undefined,  // Make it optional
+      price: 0,
+      sku: '',
+      stockCount: 0
+    });
+  };
 
   const onSubmit = async (data: ProductFormValues) => {
     try {
@@ -159,6 +301,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       setOpen(false);
     }
   }
+
+  const handleDeleteVariant = async (variantId: string) => {
+    try {
+      setLoading(true);
+      await axios.delete(`/api/${params.storeId}/variants/${variantId}`);
+      router.refresh();
+      toast.success('Variant deleted.');
+    } catch (error) {
+      toast.error('Something went wrong.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -242,96 +397,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             />
             <FormField
               control={form.control}
-              name="sizeId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Size</FormLabel>
-                  <Select disabled={loading} onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue defaultValue={field.value} placeholder="Select a size" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {sizes.map((size) => (
-                        <SelectItem key={size.id} value={size.id}>{size.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="colorId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Color</FormLabel>
-                  <Select disabled={loading} onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue defaultValue={field.value} placeholder="Select a color" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {colors.map((color) => (
-                        <SelectItem key={color.id} value={color.id}>{color.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="isFeatured"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      // @ts-ignore
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Featured
-                    </FormLabel>
-                    <FormDescription>
-                      This product will appear on the home page
-                    </FormDescription>
-                  </div>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="isArchived"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      // @ts-ignore
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Archived
-                    </FormLabel>
-                    <FormDescription>
-                      This product will not appear anywhere in the store.
-                    </FormDescription>
-                  </div>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="taxonIds"
               render={({ field }) => (
                 <FormItem className="col-span-2">
@@ -387,7 +452,102 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="slug"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Slug</FormLabel>
+                  <FormControl>
+                    <Input disabled={loading} placeholder="product-url-slug" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select disabled={loading} onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue defaultValue={field.value} placeholder="Select status" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="brandId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Brand</FormLabel>
+                  <Select 
+                    disabled={loading} 
+                    onValueChange={field.onChange} 
+                    value={field.value} 
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue defaultValue={field.value} placeholder="Select a brand" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {brands?.map((brand) => (
+                        <SelectItem key={brand.id} value={brand.id}>
+                          {brand.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
+          
+          {initialData && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Heading title="Variants" description="Manage product variants" />
+                  <Button
+                    onClick={() => router.push(`/${params.storeId}/variants/new?productId=${initialData.id}`)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Variant
+                  </Button>
+                </div>
+                {initialData.variants && initialData.variants.length > 0 ? (
+                  <div className="rounded-md border">
+                    <VariantsTable 
+                      variants={initialData.variants}
+                      storeId={params.storeId}
+                      onDelete={handleDeleteVariant}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-24 bg-slate-100 dark:bg-slate-900 rounded-md">
+                    <p className="text-sm text-muted-foreground">No variants found</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          
           <Button disabled={loading} className="ml-auto" type="submit">
             {action}
           </Button>
@@ -406,10 +566,11 @@ const findTaxonById = (taxonomies: any[], id: string): Taxon | null => {
   return null;
 };
 
-const findTaxonInHierarchy = (taxons: any[], id: string): Taxon | null => {
+// Add type guard to prevent infinite recursion
+const findTaxonInHierarchy = (taxons: TaxonWithChildren[], id: string): Taxon | null => {
   for (const taxon of taxons) {
     if (taxon.id === id) return taxon;
-    if (taxon.children) {
+    if (taxon.children && Array.isArray(taxon.children)) {
       const found = findTaxonInHierarchy(taxon.children, id);
       if (found) return found;
     }

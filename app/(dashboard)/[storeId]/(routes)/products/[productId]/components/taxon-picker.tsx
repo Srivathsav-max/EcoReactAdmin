@@ -18,12 +18,16 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 
+interface TaxonWithChildren extends Taxon {
+  children?: TaxonWithChildren[];
+}
+
+interface TaxonomyWithTaxons extends Taxonomy {
+  taxons: TaxonWithChildren[];
+}
+
 interface TaxonPickerProps {
-  taxonomies: (Taxonomy & {
-    taxons: (Taxon & {
-      children?: Taxon[];
-    })[];
-  })[];
+  taxonomies: TaxonomyWithTaxons[];
   value: string[];
   onChange: (value: string[]) => void;
   disabled?: boolean;
@@ -40,18 +44,20 @@ export const TaxonPicker: React.FC<TaxonPickerProps> = ({
   const [expandedTaxons, setExpandedTaxons] = useState<{ [key: string]: boolean }>({});
 
   // Get all selected taxons with their parents
-  const getAllParentIds = (taxonId: string): string[] => {
+  const getAllParentIds = (taxonId: string, depth = 0): string[] => {
+    if (depth > 100) return []; // Prevent infinite recursion
     const result: string[] = [];
     
-    const findParent = (id: string) => {
+    const findParent = (id: string, currentDepth: number) => {
+      if (currentDepth > 100) return; // Safety check
       const parent = findTaxonWithParent(taxonomies, id);
       if (parent?.parentId) {
         result.push(parent.parentId);
-        findParent(parent.parentId);
+        findParent(parent.parentId, currentDepth + 1);
       }
     };
 
-    findParent(taxonId);
+    findParent(taxonId, 0);
     return result;
   };
 
@@ -333,3 +339,14 @@ const findTaxonomyByTaxonId = (taxonomies: any[], id: string): Taxonomy | null =
   }
   return null;
 };
+
+// Add memoization to prevent redundant recursion
+const memoizedFindTaxonById = (() => {
+  const cache = new Map<string, Taxon | null>();
+  return (taxonomies: any[], id: string): Taxon | null => {
+    if (cache.has(id)) return cache.get(id);
+    const result = findTaxonById(taxonomies, id);
+    cache.set(id, result);
+    return result;
+  };
+})();
