@@ -1,14 +1,18 @@
 import { format } from "date-fns";
 import prismadb from "@/lib/prismadb";
 import { StockMovementClient } from "./components/client";
-import { StockMovementColumn } from "./components/columns";
+import { StockMovementColumn, StockMovementType } from "./components/columns";
+
+const ITEMS_PER_PAGE = 100;
 
 const StockMovementsPage = async ({
   params
 }: {
   params: { storeId: string }
 }) => {
+  // Fetch only essential fields and limit the number of records
   const stockMovements = await prismadb.stockMovement.findMany({
+    take: ITEMS_PER_PAGE,
     where: {
       variant: {
         product: {
@@ -16,15 +20,32 @@ const StockMovementsPage = async ({
         }
       }
     },
-    include: {
+    select: {
+      id: true,
+      quantity: true,
+      type: true,
+      reason: true,
+      createdAt: true,
       variant: {
-        include: {
-          product: true,
-          color: true,
-          size: true
+        select: {
+          name: true,
+          product: {
+            select: {
+              name: true
+            }
+          },
+          color: {
+            select: {
+              name: true
+            }
+          },
+          size: {
+            select: {
+              name: true
+            }
+          }
         }
-      },
-      stockItem: true
+      }
     },
     orderBy: {
       createdAt: 'desc'
@@ -38,7 +59,7 @@ const StockMovementsPage = async ({
     color: item.variant.color?.name || 'N/A',
     size: item.variant.size?.name || 'N/A',
     quantity: item.quantity,
-    type: item.type,
+    type: item.type as StockMovementType, // Type assertion since we know the values are constrained in the database
     reason: item.reason || 'N/A',
     createdAt: format(item.createdAt, 'MMMM do, yyyy'),
   }));
@@ -52,4 +73,4 @@ const StockMovementsPage = async ({
   );
 };
 
-export default StockMovementsPage; 
+export default StockMovementsPage;

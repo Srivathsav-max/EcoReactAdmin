@@ -3,6 +3,8 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 
+export type StockMovementType = "increment" | "decrement" | "adjustment";
+
 export type StockMovementColumn = {
   id: string;
   productName: string;
@@ -10,7 +12,7 @@ export type StockMovementColumn = {
   color: string;
   size: string;
   quantity: number;
-  type: string;
+  type: StockMovementType;
   reason: string;
   createdAt: string;
 };
@@ -43,7 +45,7 @@ export const columns: ColumnDef<StockMovementColumn>[] = [
       <Badge
         variant={
           row.original.type === "increment"
-            ? "success"
+            ? "default"
             : row.original.type === "decrement"
             ? "destructive"
             : "secondary"
@@ -61,4 +63,4 @@ export const columns: ColumnDef<StockMovementColumn>[] = [
     accessorKey: "createdAt",
     header: "Date",
   },
-]; 
+];
