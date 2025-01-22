@@ -19,6 +19,19 @@ const nextConfig = {
   experimental: {
     workerThreads: false,
     cpus: 3
+  },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'x-forwarded-host',
+            value: '*'
+          }
+        ]
+      }
+    ];
   }
 }
 
