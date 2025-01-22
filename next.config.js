@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    unoptimized: true,
     domains: [
       'cloud.appwrite.io',
       'localhost',
@@ -18,22 +17,11 @@ const nextConfig = {
   ],
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000']
+      bodySizeLimit: '2mb'
     }
   },
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'x-forwarded-host',
-            value: '*'
-          }
-        ]
-      }
-    ];
-  }
-}
+  productionBrowserSourceMaps: false,
+  poweredByHeader: false
+};
 
 module.exports = nextConfig;
