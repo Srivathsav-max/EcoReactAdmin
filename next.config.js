@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   images: {
     unoptimized: true,
     domains: [
@@ -18,7 +19,7 @@ const nextConfig = {
   ],
   experimental: {
     workerThreads: false,
-    cpus: 3
+    cpus: 1
   },
   async headers() {
     return [
