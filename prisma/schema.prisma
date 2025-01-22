@@ -14,6 +14,11 @@ model Store {
   userId          String
   currency        String?          @default("USD")
   locale          String?          @default("en-US")
+  domain          String?          @unique @db.Text
+  themeSettings   Json?
+  customCss       String?          @db.Text
+  logoUrl         String?          @db.Text
+  faviconUrl      String?          @db.Text
   billboards      Billboard[]      @relation("StoreToBillboard")
   products        Product[]        @relation("StoreToProduct")
   sizes           Size[]           @relation("StoreToSize")
@@ -135,7 +140,7 @@ model ProductProperty {
 
 model Variant {
   id              String               @id @default(uuid())
-  name            String               // Make sure this is added
+  name            String // Make sure this is added
   productId       String
   product         Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
   sku             String               @unique

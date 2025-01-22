@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
+import { getSession, isAdmin } from '@/lib/auth';
 import prismadb from '@/lib/prismadb';
 import { Sidebar } from "@/components/sidebar";
-import { verifyAuth } from '@/lib/auth';
 import Navbar from '@/components/navbar';
 
 export default async function DashboardLayout({
@@ -12,23 +11,20 @@ export default async function DashboardLayout({
   children: React.ReactNode
   params: { storeId: string }
 }) {
-  const cookieStore = cookies();
-  const token = cookieStore.get('token')?.value;
+  const session = await getSession();
   
-  if (!token) {
-    redirect('/sign-in');
+  if (!session) {
+    redirect('/signin');
   }
 
-  const session = await verifyAuth(token);
-
-  if (!session?.user) {
-    redirect('/sign-in');
+  if (!isAdmin(session)) {
+    redirect('/signin');
   }
 
   const store = await prismadb.store.findFirst({
     where: {
       id: params.storeId,
-      userId: session.user.id,
+      userId: session.userId,
     }
   });
 
@@ -38,7 +34,7 @@ export default async function DashboardLayout({
 
   const stores = await prismadb.store.findMany({
     where: {
-      userId: session.user.id,
+      userId: session.userId,
     }
   });
 

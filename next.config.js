@@ -5,6 +5,7 @@ const nextConfig = {
     domains: [
       'cloud.appwrite.io',
       'localhost',
+      'lvh.me',
       process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT?.replace(/^https?:\/\//, '') || '',
     ]
   },
@@ -18,7 +19,7 @@ const nextConfig = {
   ],
   experimental: {
     workerThreads: false,
-    cpus: 1
+    cpus: 3
   }
 }
 

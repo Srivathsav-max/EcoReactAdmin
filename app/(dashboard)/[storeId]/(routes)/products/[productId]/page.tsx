@@ -1,5 +1,5 @@
 import prismadb from "@/lib/prismadb";
-import { ProductForm } from "./components/product-form";
+import { ProductTabs } from "./components/product-tabs";
 
 const ProductPage = async ({
   params
@@ -29,7 +29,8 @@ const ProductPage = async ({
           size: true,
           stockItems: true
         }
-      }
+      },
+      properties: true
     }
   });
 
@@ -49,7 +50,9 @@ const ProductPage = async ({
 
   // Format the variant data if it exists
   const formattedProduct = product ? {
-    ...product,
+    id: product.id,
+    name: product.name,
+    description: product.description,
     price: product.price ? parseFloat(product.price.toString()) : 0,
     costPrice: product.costPrice ? parseFloat(product.costPrice.toString()) : null,
     compareAtPrice: product.compareAtPrice ? parseFloat(product.compareAtPrice.toString()) : null,
@@ -58,12 +61,21 @@ const ProductPage = async ({
     height: product.height ? parseFloat(product.height.toString()) : null,
     width: product.width ? parseFloat(product.width.toString()) : null,
     depth: product.depth ? parseFloat(product.depth.toString()) : null,
+    status: product.status,
     images: product.images,
     taxons: product.taxons,
     variants: product.variants?.map(variant => ({
       ...variant,
       price: parseFloat(variant.price.toString())
-    }))
+    })),
+    properties: product.properties,
+    // SEO fields
+    slug: product.slug || "",
+    metaTitle: product.metaTitle || "",
+    metaDescription: product.metaDescription || "",
+    metaKeywords: product.metaKeywords || "",
+    // Shipping fields
+    shippingCategory: product.shippingCategory || ""
   } : null;
 
   const taxonomies = await prismadb.taxonomy.findMany({
@@ -86,7 +98,7 @@ const ProductPage = async ({
   return ( 
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <ProductForm 
+        <ProductTabs
           initialData={formattedProduct}
           sizes={sizes}
           colors={colors}

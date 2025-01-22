@@ -1,71 +1,66 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verify } from 'jsonwebtoken';
-import prismadb from '@/lib/prismadb';
+import { getSession, isAdmin } from "@/lib/auth";
+import prismadb from "@/lib/prismadb";
 
-export async function GET() {
+export async function POST(
+  req: Request,
+) {
   try {
-    const token = cookies().get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 403 });
+    const session = await getSession();
+
+    if (!session || !isAdmin(session)) {
+      return new NextResponse("Unauthorized", { status: 401 });
     }
-
-    const decoded = verify(token, process.env.JWT_SECRET!) as { sub: string };
-    const userId = decoded.sub;
-
-    const stores = await prismadb.store.findMany({
-      where: {
-        userId,
-      },
-      select: {
-        id: true,
-        name: true,
-        userId: true,
-        currency: true,
-        locale: true,
-        createdAt: true,
-        updatedAt: true,
-      }
-    });
-  
-    return NextResponse.json(stores);
-  } catch (error) {
-    console.log('[STORES_GET]', error);
-    return new NextResponse("Internal error", { status: 500 });
-  }
-}
-
-export async function POST(req: Request) {
-  try {
-    const token = cookies().get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 403 });
-    }
-
-    const decoded = verify(token, process.env.JWT_SECRET!) as { sub: string };
-    const userId = decoded.sub;
 
     const body = await req.json();
-    const { name, currency = 'USD', locale = 'en-US' } = body;
-
+    const { name } = body;
+    
     if (!name) {
       return new NextResponse("Name is required", { status: 400 });
     }
 
+    // Generate a default domain based on store name
+    const defaultDomain = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
     const store = await prismadb.store.create({
       data: {
         name,
-        userId,
-        currency,
-        locale,
+        userId: session.userId,
+        domain: `${defaultDomain}-${Date.now()}`,  // Ensure uniqueness
+        themeSettings: {
+          primaryColor: '#000000',
+          secondaryColor: '#ffffff',
+          fontFamily: 'Inter'
+        }
       }
     });
   
     return NextResponse.json(store);
   } catch (error) {
     console.log('[STORES_POST]', error);
+    return new NextResponse("Internal error", { status: 500 });
+  }
+}
+
+export async function GET(
+  req: Request,
+) {
+  try {
+    const session = await getSession();
+
+    if (!session || !isAdmin(session)) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const stores = await prismadb.store.findMany({
+      where: {
+        userId: session.userId
+      }
+    });
+  
+    return NextResponse.json(stores);
+  } catch (error) {
+    console.log('[STORES_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }

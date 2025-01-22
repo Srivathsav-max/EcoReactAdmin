@@ -10,6 +10,19 @@ import { Trash, X, Plus, Edit } from "lucide-react"
 import { Color, Image, Product, Size, Taxonomy, Taxon, Variant } from "@prisma/client"
 import { useParams, useRouter } from "next/navigation"
 import { DataTable } from "@/components/ui/data-table"
+import type { ColumnDef } from "@tanstack/react-table"
+
+type TaxonWithChildren = Taxon & {
+  children?: TaxonWithChildren[];
+};
+
+interface TableColumn {
+  accessorKey?: string;
+  header?: string;
+  id?: string;
+  cell?: ({ row }: { row: { original: ProductVariant } }) => React.ReactNode;
+}
+
 import { Separator } from "@/components/ui/separator"
 import { Heading } from "@/components/ui/heading"
 import { AlertModal } from "@/components/modals/alert-modal"
@@ -36,39 +49,57 @@ type DecimalType = {
   toNumber(): number;
 };
 
+type ImageType = {
+  url: string;
+  fileId: string;
+};
+
 const formSchema = z.object({
   name: z.string().min(1),
-  slug: z.string().optional(),
-  description: z.string().optional(),
-  images: z.object({ 
+  slug: z.string().nullish().transform(v => v ?? ''),
+  description: z.string().nullish().transform(v => v ?? ''),
+  images: z.array(z.object({
     url: z.string(),
     fileId: z.string()
-  }).array(),
-  price: z.coerce.number().nullable(),
-  costPrice: z.coerce.number().nullable().optional(),
-  compareAtPrice: z.coerce.number().nullable().optional(),
-  status: z.string().default('draft'),
-  metaTitle: z.string().optional(),
-  metaDescription: z.string().optional(),
-  metaKeywords: z.string().optional(),
-  sku: z.string().optional(),
-  availableOn: z.date().optional().nullable(),
-  discontinueOn: z.date().optional().nullable(),
-  taxCategory: z.string().optional(),
-  shippingCategory: z.string().optional(),
-  weight: z.coerce.number().optional(),
-  height: z.coerce.number().optional(),
-  width: z.coerce.number().optional(),
-  depth: z.coerce.number().optional(),
+  })).default([]),
+  price: z.coerce.number().min(0).default(0),
+  costPrice: z.coerce.number().nullable(),
+  compareAtPrice: z.coerce.number().nullable(),
+  status: z.string().refine(val => ['draft', 'active', 'archived'].includes(val), {
+    message: "Status must be either 'draft', 'active', or 'archived'",
+  }).default('draft'),
+  metaTitle: z.string().nullish().transform(v => v ?? ''),
+  metaDescription: z.string().nullish().transform(v => v ?? ''),
+  metaKeywords: z.union([z.string(), z.array(z.string())])
+    .transform(v => {
+      if (Array.isArray(v)) return v.join(', ');
+      return v || '';
+    })
+    .default(''),
+  sku: z.string().nullish().transform(v => v ?? ''),
+  availableOn: z.preprocess(
+    (arg) => (arg ? new Date(arg as string) : null),
+    z.date().nullable()
+  ),
+  discontinueOn: z.preprocess(
+    (arg) => (arg ? new Date(arg as string) : null),
+    z.date().nullable()
+  ),
+  taxCategory: z.string().nullish().transform(v => v ?? ''),
+  shippingCategory: z.string().nullish().transform(v => v ?? ''),
+  weight: z.coerce.number().nullable(),
+  height: z.coerce.number().nullable(),
+  width: z.coerce.number().nullable(),
+  depth: z.coerce.number().nullable(),
   variants: z.array(z.object({
     colorId: z.string().optional(),
     sizeId: z.string().optional(),
     price: z.coerce.number().min(0),
-    sku: z.string().optional(),
+    sku: z.string().nullish().transform(v => v ?? ''),
     stockCount: z.number().min(0).default(0)
   })).default([]),
   taxonIds: z.array(z.string()).default([]),
-  brandId: z.string().optional(),
+  brandId: z.string().nullish().transform(v => v ?? '')
 });
 
 type ProductFormValues = z.infer<typeof formSchema>
@@ -79,23 +110,39 @@ interface ProductVariant extends Variant {
   stockItems?: { count: number }[];
 }
 
+interface ImageUploadProps {
+  value: string[];
+  disabled?: boolean;
+  onChange: (value: string) => void;
+  onRemove: (value: string) => void;
+}
+
 interface ProductFormProps {
   initialData: {
     id: string;
     name: string;
+    slug?: string | null;
     description?: string | null;
     images: Image[];
     price: number;
     costPrice?: number | null;
     compareAtPrice?: number | null;
-    taxRate?: number | null;
+    status: string;
+    metaTitle?: string | null;
+    metaDescription?: string | null;
+    metaKeywords?: string | null;
+    sku?: string | null;
+    availableOn?: Date | null;
+    discontinueOn?: Date | null;
+    taxCategory?: string | null;
+    shippingCategory?: string | null;
     weight?: number | null;
     height?: number | null;
     width?: number | null;
     depth?: number | null;
-    status: string;
-    taxons: Taxon[];
     variants?: ProductVariant[];
+    taxons: Taxon[];
+    brandId?: string | null;
   } | null;
   colors: Color[];
   sizes: Size[];
@@ -121,7 +168,7 @@ const VariantsTable = ({
 }) => {
   const router = useRouter();
   
-  const columns = [
+  const columns: ColumnDef<ProductVariant>[] = [
     {
       accessorKey: "name",
       header: "Name",
@@ -129,31 +176,31 @@ const VariantsTable = ({
     {
       accessorKey: "color",
       header: "Color",
-      cell: ({ row }) => row.original.color?.name || 'N/A'
+      cell: ({ row }: { row: { original: ProductVariant } }) => row.original.color?.name || 'N/A'
     },
     {
       accessorKey: "size",
       header: "Size",
-      cell: ({ row }) => row.original.size?.name || 'N/A'
+      cell: ({ row }: { row: { original: ProductVariant } }) => row.original.size?.name || 'N/A'
     },
     {
       accessorKey: "price",
       header: "Price",
-      cell: ({ row }) => formatPrice(parseFloat(String(row.original.price)))
+      cell: ({ row }: { row: { original: ProductVariant } }) => formatPrice(parseFloat(String(row.original.price)))
     },
     {
       accessorKey: "sku",
       header: "SKU",
-      cell: ({ row }) => row.original.sku || 'N/A'
+      cell: ({ row }: { row: { original: ProductVariant } }) => row.original.sku || 'N/A'
     },
     {
       accessorKey: "stockCount",
       header: "Stock",
-      cell: ({ row }) => row.original.stockItems?.[0]?.count || 0
+      cell: ({ row }: { row: { original: ProductVariant } }) => row.original.stockItems?.[0]?.count || 0
     },
     {
       id: "actions",
-      cell: ({ row }) => (
+      cell: ({ row }: { row: { original: ProductVariant } }) => (
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -174,7 +221,7 @@ const VariantsTable = ({
     }
   ];
 
-  return <DataTable columns={columns} data={variants} />;
+  return <DataTable columns={columns} data={variants} searchKey="name" />;
 };
 
 export const ProductForm: React.FC<ProductFormProps> = ({
@@ -198,22 +245,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const toastMessage = initialData ? 'Product updated.' : 'Product created.';
   const action = initialData ? 'Save changes' : 'Create';
 
-  // Transform initial data to use masked URLs and handle Decimal price
   const formattedInitialData = initialData ? {
     ...initialData,
     images: initialData.images.map(img => ({
-      ...img,
-      url: getMaskedImageUrl(img.fileId)
+      url: getMaskedImageUrl(img.fileId),
+      fileId: img.fileId
     })),
-    variants: initialData.variants?.map(variant => ({
-      colorId: variant.colorId || '',
-      sizeId: variant.sizeId || '',
-      price: typeof variant.price === 'object' && 'toNumber' in variant.price 
-        ? variant.price.toNumber() 
+    description: initialData.description ?? '',
+    slug: initialData.slug ?? '',
+    metaTitle: initialData.metaTitle ?? '',
+    metaDescription: initialData.metaDescription ?? '',
+    metaKeywords: initialData.metaKeywords ?? '',
+    sku: initialData.sku ?? '',
+    taxCategory: initialData.taxCategory ?? '',
+    shippingCategory: initialData.shippingCategory ?? '',
+    brandId: initialData.brandId ?? '',
+    variants: (initialData.variants ?? []).map(variant => ({
+      colorId: variant.colorId ?? '',
+      sizeId: variant.sizeId ?? '',
+      price: typeof variant.price === 'object' && 'toNumber' in variant.price
+        ? variant.price.toNumber()
         : parseFloat(String(variant.price)) || 0,
-      sku: variant.sku || '',
-      stockCount: variant.stockItems?.[0]?.count || 0
-    })) || []
+      sku: variant.sku ?? '',
+      stockCount: variant.stockItems?.[0]?.count ?? 0
+    }))
   } : null;
 
   const safeParsePrice = (price: DecimalType | number): number => {
@@ -223,16 +278,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     return typeof price === 'number' ? price : 0;
   };
 
-  const defaultValues = formattedInitialData ? {
-    ...formattedInitialData,
-    price: safeParsePrice(formattedInitialData.price),
-    taxonIds: initialTaxons?.map(taxon => taxon.id) || [],
-  } : {
-    name: '',
-    images: [],
-    price: 0.00,
-    taxonIds: [],
-    variants: []
+  const defaultValues: ProductFormValues = {
+    name: formattedInitialData?.name ?? '',
+    description: formattedInitialData?.description ?? '',
+    slug: formattedInitialData?.slug ?? '',
+    images: formattedInitialData?.images ?? [],
+    price: formattedInitialData ? safeParsePrice(formattedInitialData.price) : 0,
+    costPrice: formattedInitialData?.costPrice ?? null,
+    compareAtPrice: formattedInitialData?.compareAtPrice ?? null,
+    status: formattedInitialData?.status ?? 'draft',
+    metaTitle: formattedInitialData?.metaTitle ?? '',
+    metaDescription: formattedInitialData?.metaDescription ?? '',
+    metaKeywords: formattedInitialData?.metaKeywords ?? '',
+    sku: formattedInitialData?.sku ?? '',
+    availableOn: formattedInitialData?.availableOn ?? null,
+    discontinueOn: formattedInitialData?.discontinueOn ?? null,
+    taxCategory: formattedInitialData?.taxCategory ?? '',
+    shippingCategory: formattedInitialData?.shippingCategory ?? '',
+    weight: formattedInitialData?.weight ?? null,
+    height: formattedInitialData?.height ?? null,
+    width: formattedInitialData?.width ?? null,
+    depth: formattedInitialData?.depth ?? null,
+    variants: formattedInitialData?.variants ?? [],
+    taxonIds: initialTaxons?.map(taxon => taxon.id) ?? [],
+    brandId: formattedInitialData?.brandId ?? ''
   }
 
   const form = useForm<ProductFormValues>({
@@ -346,12 +415,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               <FormItem>
                 <FormLabel>Images</FormLabel>
                 <FormControl>
-                  <ImageUpload 
-                    disabled={loading} 
-                    value={field.value.map((image) => image.url)} 
-                    onChange={(url) => field.onChange([{ url, fileId: '' }])}
-                    onChangeUrl={(url, fileId) => field.onChange([...field.value, { url, fileId }])}
-                    onRemove={(url) => field.onChange([...field.value.filter((current) => current.url !== url)])}
+                  <ImageUpload
+                    disabled={loading}
+                    value={field.value.map((image: ImageType) => image.url)}
+                    onChange={(url: string) => {
+                      const fileId = url.split('/').pop() || '';
+                      field.onChange([...field.value, { url, fileId }]);
+                    }}
+                    onRemove={(url: string) => {
+                      field.onChange(field.value.filter((current: ImageType) => current.url !== url));
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -359,6 +432,43 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             )}
           />
           <div className="md:grid md:grid-cols-3 gap-8">
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <textarea
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={loading}
+                      placeholder="Product description"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <textarea
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={loading}
+                      placeholder="Product description"
+                      {...field}
+                      value={field.value ?? ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="name"
@@ -512,6 +622,223 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <div className="md:grid md:grid-cols-3 gap-8">
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <textarea
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={loading}
+                      placeholder="Product description"
+                      {...field}
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="costPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cost Price</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      disabled={loading}
+                      placeholder="0.00"
+                      {...field}
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Cost price in {storeCurrency}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="compareAtPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Compare At Price</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      disabled={loading}
+                      placeholder="0.00"
+                      {...field}
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Original price for comparison
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="md:grid md:grid-cols-3 gap-8">
+            <FormField
+              control={form.control}
+              name="metaTitle"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Meta Title</FormLabel>
+                  <FormControl>
+                    <Input disabled={loading} placeholder="SEO title" {...field} value={field.value || ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="metaDescription"
+              render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormLabel>Meta Description</FormLabel>
+                  <FormControl>
+                    <textarea
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={loading}
+                      placeholder="SEO description"
+                      {...field}
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="metaKeywords"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Meta Keywords</FormLabel>
+                  <FormControl>
+                    <Input
+                      disabled={loading}
+                      placeholder="Comma separated keywords"
+                      {...field}
+                      value={Array.isArray(field.value) ? field.value.join(', ') : field.value || ''}
+                      onChange={(e) => {
+                        const keywords = e.target.value.split(',').map(k => k.trim()).filter(Boolean);
+                        field.onChange(keywords);
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Separate keywords with commas
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <div className="md:grid md:grid-cols-4 gap-8">
+            <FormField
+              control={form.control}
+              name="weight"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Weight (kg)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      disabled={loading}
+                      placeholder="0.00"
+                      {...field}
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="height"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Height (cm)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      disabled={loading}
+                      placeholder="0.00"
+                      {...field}
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="width"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Width (cm)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      disabled={loading}
+                      placeholder="0.00"
+                      {...field}
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="depth"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Depth (cm)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      disabled={loading}
+                      placeholder="0.00"
+                      {...field}
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

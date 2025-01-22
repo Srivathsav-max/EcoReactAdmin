@@ -1,39 +1,31 @@
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
-import prismadb from '@/lib/prismadb';
-import { verifyAuth } from '@/lib/auth';
+import { getSession, isAdmin } from '@/lib/auth';
+import { ModalProvider } from "@/providers/modal-provider";
+import { ToastProvider } from "@/providers/toast-provider";
+import { ThemeProvider } from "@/providers/theme-provider";
 
 export default async function SetupLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const cookieStore = cookies();
-  const token = cookieStore.get('token')?.value;
+  const session = await getSession();
 
-  if (!token) {
-    redirect('/sign-in');
+  if (!session) {
+    redirect('/signin');
   }
 
-  const session = await verifyAuth(token);
-  
-  if (!session?.user) {
-    redirect('/sign-in');
-  }
-
-  const store = await prismadb.store.findFirst({
-    where: {
-      userId: session.user.id
-    }
-  });
-
-  if (store) {
-    redirect(`/${store.id}`);
+  if (!isAdmin(session)) {
+    redirect('/signin');
   }
 
   return (
     <>
-      {children}
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ToastProvider />
+        <ModalProvider />
+        {children}
+      </ThemeProvider>
     </>
   );
 }

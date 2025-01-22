@@ -1,69 +1,74 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import bcrypt from "bcryptjs";
 import prismadb from "@/lib/prismadb";
-import { sign } from 'jsonwebtoken';
-import { verifyPassword } from "@/lib/auth"; // Updated import
+import { generateAdminToken } from "@/lib/auth";
 
-export async function POST(req: Request) {
+export async function POST(
+  req: Request,
+) {
   try {
     const body = await req.json();
     const { email, password } = body;
 
     if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
+      return new NextResponse("Missing credentials", { status: 400 });
     }
 
+    // Get user
     const user = await prismadb.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        password: true
+      where: {
+        email
       }
     });
 
     if (!user) {
-      console.log("User not found:", email);
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return new NextResponse("Invalid credentials", { status: 401 });
     }
 
-    console.log("Found user:", { email: user.email, hashedPasswordLength: user.password.length });
-    const isValid = await verifyPassword(password, user.password);
-    console.log("Password verification result:", isValid);
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    if (!isValid) {
-      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+    if (!isPasswordValid) {
+      return new NextResponse("Invalid credentials", { status: 401 });
     }
 
-    if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET is not defined");
-      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
-    }
+    // Get user's stores
+    const stores = await prismadb.store.findMany({
+      where: {
+        userId: user.id
+      },
+      select: {
+        id: true
+      }
+    });
 
-    const token = sign(
-      { sub: user.id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' }
-    );
+    // Generate token
+    const token = generateAdminToken({
+      id: user.id,
+      email: user.email
+    });
 
-    const response = NextResponse.json(
-      { success: true, redirectUrl: '/dashboard' },
-      { status: 200 }
-    );
-
-    response.cookies.set('token', token, {
+    // Set cookie
+    cookies().set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 // 1 day
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
     });
 
-    return response;
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: 'admin'
+      },
+      stores: stores.map(store => store.id)
+    });
   } catch (error) {
-    console.error("Sign-in error:", error);
-    return NextResponse.json({ 
-      error: 'Authentication failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    console.log('[SIGNIN]', error);
+    return new NextResponse("Internal error", { status: 500 });
   }
 }

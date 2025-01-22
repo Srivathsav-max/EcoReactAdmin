@@ -1,59 +1,127 @@
-import { compare, hash } from 'bcryptjs';
-import { verify } from 'jsonwebtoken';
-import prismadb from '@/lib/prismadb';
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import prismadb from "./prismadb";
 
-const SALT_ROUNDS = 12;
-
-export async function hashPassword(password: string) {
-  return await hash(password, SALT_ROUNDS);
+export interface AdminSession {
+  userId: string;
+  email: string;
+  role: 'admin';
 }
 
-export async function verifyPassword(plainPassword: string, hashedPassword: string) {
+export interface CustomerSession {
+  customerId: string;
+  email: string;
+  storeId: string;
+  role: 'customer';
+}
+
+type Session = AdminSession | CustomerSession;
+
+// Main session getter
+export async function getSession(): Promise<Session | null> {
   try {
-    const isValid = await compare(plainPassword, hashedPassword);
-    return isValid;
-  } catch (error) {
-    return false;
-  }
-}
+    const token = cookies().get('token')?.value;
 
-export async function createUser(email: string, password: string) {
-  const hashedPassword = await hashPassword(password);
-  
-  return await prismadb.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-    },
-  });
-}
-
-export async function getUserByEmail(email: string) {
-  return await prismadb.user.findUnique({
-    where: { email },
-  });
-}
-
-export async function verifyAuth(token: string) {
-  try {
     if (!token) {
       return null;
     }
 
-    // Verify the token
-    const decoded = verify(token, process.env.JWT_SECRET!);
-    
-    // Get user from database
-    const user = await prismadb.user.findUnique({
-      where: { id: decoded.sub as string },
-    });
-
-    if (!user) {
-      return null;
-    }
-
-    return { user };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as Session;
+    return decoded;
   } catch (error) {
+    console.error('[AUTH_ERROR]', error);
     return null;
   }
+}
+
+// Auth verification
+export async function verifyAuth(): Promise<Session | null> {
+  return getSession();
+}
+
+// User management
+export async function getUserByEmail(email: string) {
+  return prismadb.user.findUnique({
+    where: { email }
+  });
+}
+
+export async function createUser(email: string, password: string) {
+  const hashedPassword = await bcrypt.hash(password, 10);
+  
+  return prismadb.user.create({
+    data: {
+      email,
+      password: hashedPassword
+    }
+  });
+}
+
+// Customer management
+export async function getCustomerByEmail(email: string, storeId: string) {
+  return prismadb.customer.findFirst({
+    where: {
+      email,
+      storeId
+    }
+  });
+}
+
+export async function createCustomer(
+  email: string,
+  password: string,
+  storeId: string,
+  name: string
+) {
+  const hashedPassword = await bcrypt.hash(password, 10);
+  
+  return prismadb.customer.create({
+    data: {
+      email,
+      password: hashedPassword,
+      storeId,
+      name
+    }
+  });
+}
+
+// Password utilities
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
+
+export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  return bcrypt.compare(password, hashedPassword);
+}
+
+// Token generation
+export function generateAdminToken(user: { id: string; email: string }) {
+  return jwt.sign(
+    { userId: user.id, email: user.email, role: 'admin' },
+    process.env.JWT_SECRET!,
+    { expiresIn: '7d' }
+  );
+}
+
+export function generateCustomerToken(customer: { id: string; email: string; storeId: string }) {
+  return jwt.sign(
+    { 
+      customerId: customer.id, 
+      email: customer.email, 
+      storeId: customer.storeId,
+      role: 'customer'
+    },
+    process.env.JWT_SECRET!,
+    { expiresIn: '30d' }
+  );
+}
+
+// Type guards
+export function isAdmin(session: Session | null): session is AdminSession {
+  return session?.role === 'admin';
+}
+
+export function isCustomer(session: Session | null): session is CustomerSession {
+  return session?.role === 'customer';
 }
