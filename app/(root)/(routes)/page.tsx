@@ -1,21 +1,13 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { useParams } from "next/navigation";
+import prismadb from "@/lib/prismadb";
 
-import { useStoreModal } from "@/hooks/use-store-modal";
+export default async function SetupPage() {
+  const store = await prismadb.store.findFirst();
 
-const SetupPage = () => {
-  const onOpen = useStoreModal((state) => state.onOpen);
-  const isOpen = useStoreModal((state) => state.isOpen);
+  if (store) {
+    redirect(`/${store.id}`);
+  }
 
-  useEffect(() => {
-    if (!isOpen) {
-      onOpen();
-    }
-  }, [isOpen, onOpen]);
-
-  return null;
-};
- 
-export default SetupPage;
+  return redirect('/sign-in');
+}

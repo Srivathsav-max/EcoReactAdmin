@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
   images: {
     unoptimized: true,
     domains: [
@@ -18,8 +17,9 @@ const nextConfig = {
     '@tanstack/react-table'
   ],
   experimental: {
-    workerThreads: false,
-    cpus: 1
+    serverActions: {
+      allowedOrigins: ['localhost:3000']
+    }
   },
   async headers() {
     return [
