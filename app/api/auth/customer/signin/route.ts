@@ -51,7 +51,8 @@ export async function POST(
     });
 
     // Set cookie
-    cookies().set('customer_token', token, {
+    const cookieStore = await cookies();
+    cookieStore.set('customer_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

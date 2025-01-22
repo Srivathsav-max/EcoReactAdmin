@@ -12,7 +12,8 @@ interface StorefrontPageProps {
 export default async function StorefrontPage({
   params
 }: StorefrontPageProps) {
-  const store = await getStoreByDomain(params.domain)
+  const { domain } = await params;
+  const store = await getStoreByDomain(domain)
 
   if (!store) {
     return notFound()
@@ -47,7 +48,7 @@ export default async function StorefrontPage({
             {store.taxonomies[0].taxons.map((taxon) => (
               <Link
                 key={taxon.id}
-                href={`/store/${params.domain}/categories/${taxon.permalink}`}
+                href={`/store/${domain}/categories/${taxon.permalink}`}
                 className="group relative aspect-square overflow-hidden rounded-lg bg-gray-100 hover:opacity-75"
               >
                 <div className="absolute inset-0 flex items-center justify-center p-4">
@@ -67,7 +68,7 @@ export default async function StorefrontPage({
             {store.products.map((product) => (
               <Link
                 key={product.id}
-                href={`/store/${params.domain}/products/${product.slug}`}
+                href={`/store/${domain}/products/${product.slug}`}
                 className="group"
               >
                 <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">

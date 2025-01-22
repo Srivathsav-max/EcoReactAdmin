@@ -6,7 +6,6 @@ const nextConfig = {
       'localhost',
       'lvh.me',
       'vercel.app',
-      process.env.NEXT_PUBLIC_DOMAIN || '',
       process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT?.replace(/^https?:\/\//, '') || '',
     ]
   },
@@ -14,21 +13,6 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb'
     }
-  },
-  async redirects() {
-    return [
-      {
-        source: '/',
-        has: [
-          {
-            type: 'host',
-            value: '(?<subdomain>.*).yourdomain.com',
-          },
-        ],
-        destination: '/store/:subdomain',
-        permanent: true,
-      },
-    ]
   },
   typescript: {
     ignoreBuildErrors: true

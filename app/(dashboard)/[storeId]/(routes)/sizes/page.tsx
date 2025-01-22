@@ -10,9 +10,11 @@ const SizesPage = async ({
 }: {
   params: { storeId: string }
 }) => {
+  const { storeId } = await params;
+  
   const sizes = await prismadb.size.findMany({
     where: {
-      storeId: params.storeId
+      storeId
     },
     orderBy: {
       createdAt: 'desc'

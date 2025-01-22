@@ -12,9 +12,11 @@ const ProductsPage = async ({
 }) => {
   console.log('=== Debug: Starting ProductsPage ===');
   
+  const { storeId } = await params;
+  
   const store = await prismadb.store.findFirst({
     where: {
-      id: params.storeId
+      id: storeId
     }
   });
 
@@ -34,7 +36,7 @@ const ProductsPage = async ({
 
   const products = await prismadb.product.findMany({
     where: {
-      storeId: params.storeId,
+      storeId,
     },
     include: {
       images: true,

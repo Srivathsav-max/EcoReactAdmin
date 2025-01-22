@@ -9,9 +9,11 @@ const OrdersPage = async ({
 }: {
   params: { storeId: string }
 }) => {
+  const { storeId } = await params;
+  
   const orders = await prismadb.order.findMany({
     where: {
-      storeId: params.storeId
+      storeId
     },
     include: {
       orderItems: {
@@ -38,7 +40,7 @@ const OrdersPage = async ({
       item.orderItems.reduce((total, item) => {
         return total + Number(item.variant.price)
       }, 0)
-    ),
+    ).toString(), // Convert to string to match OrderColumn type
     isPaid: item.isPaid,
     createdAt: format(item.createdAt, 'MMMM do, yyyy'),
   }));

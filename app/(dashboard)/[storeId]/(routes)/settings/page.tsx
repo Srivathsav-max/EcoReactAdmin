@@ -8,12 +8,14 @@ interface SettingsPageProps {
   }
 };
 
-const SettingsPage: React.FC<SettingsPageProps> = async ({ 
+const SettingsPage: React.FC<SettingsPageProps> = async ({
   params
 }) => {
+  const { storeId } = await params;
+  
   const store = await prismadb.store.findFirst({
     where: {
-      id: params.storeId,
+      id: storeId
     }
   });
 

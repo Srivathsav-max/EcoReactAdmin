@@ -13,7 +13,8 @@ export default async function StoreLayout({
   children,
   params
 }: StoreLayoutProps) {
-  const store = await getStorePublicData(params.domain)
+  const { domain } = await params;
+  const store = await getStorePublicData(domain)
 
   if (!store) {
     return notFound()

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
-import { verifyAuth } from "@/lib/auth";
+import { verifyAuth, isAdmin } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { StockMovementType } from "@/app/(dashboard)/[storeId]/(routes)/stock-movements/components/columns";
 
@@ -11,16 +11,16 @@ export async function POST(
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
     
     if (!token) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const session = await verifyAuth(token);
+    const session = await verifyAuth();
     
-    if (!session?.user) {
+    if (!session || !isAdmin(session)) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -54,7 +54,7 @@ export async function POST(
     const storeByUser = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       },
       select: { id: true }
     });

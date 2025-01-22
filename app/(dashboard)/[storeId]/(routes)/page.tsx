@@ -19,13 +19,15 @@ interface DashboardPageProps {
   };
 };
 
-const DashboardPage: React.FC<DashboardPageProps> = async ({ 
+const DashboardPage: React.FC<DashboardPageProps> = async ({
   params
 }) => {
+  const { storeId } = await params;
+  
   // Fetch store settings first
   const store = await prismadb.store.findFirst({
     where: {
-      id: params.storeId
+      id: storeId
     }
   });
 
@@ -38,12 +40,12 @@ const DashboardPage: React.FC<DashboardPageProps> = async ({
     locale: store.locale || 'en-US'
   });
 
-  const totalRevenue = await getTotalRevenue(params.storeId);
-  const graphRevenue = await getGraphRevenue(params.storeId);
-  const graphCustomers = await getGraphCustomers(params.storeId);
-  const salesCount = await getSalesCount(params.storeId);
-  const stockCount = await getStockCount(params.storeId);
-  const customersCount = await getCustomersCount(params.storeId);
+  const totalRevenue = await getTotalRevenue(storeId);
+  const graphRevenue = await getGraphRevenue(storeId);
+  const graphCustomers = await getGraphCustomers(storeId);
+  const salesCount = await getSalesCount(storeId);
+  const stockCount = await getStockCount(storeId);
+  const customersCount = await getCustomersCount(storeId);
 
   return (
     <div className="flex-col">

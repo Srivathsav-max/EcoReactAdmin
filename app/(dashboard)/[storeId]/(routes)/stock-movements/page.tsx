@@ -10,13 +10,15 @@ const StockMovementsPage = async ({
 }: {
   params: { storeId: string }
 }) => {
+  const { storeId } = await params;
+  
   // Fetch only essential fields and limit the number of records
   const stockMovements = await prismadb.stockMovement.findMany({
     take: ITEMS_PER_PAGE,
     where: {
       variant: {
         product: {
-          storeId: params.storeId
+          storeId
         }
       }
     },

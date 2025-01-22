@@ -16,7 +16,7 @@ export async function middleware(request: NextRequest) {
                          hostname === 'localhost:3000' ||
                          hostname === '127.0.0.1:3000' ||
                          hostname === 'admin.lvh.me:3000' ||
-                         hostname.startsWith('admin.');
+                         hostname === 'preview-ecoreact.vercel.app';
 
     // Exclude static files and API routes
     if (
@@ -36,7 +36,7 @@ export async function middleware(request: NextRequest) {
       }
 
       // Check auth for admin routes
-      const token = request.cookies.get('token')?.value;
+      const token = await request.cookies.get('token')?.value;
       if (!token && !publicRoutes.includes(pathname)) {
         return NextResponse.redirect(new URL('/signin', request.url));
       }
@@ -55,24 +55,17 @@ export async function middleware(request: NextRequest) {
       }
       storeDomain = subdomain;
     } else if (hostname.includes('vercel.app')) {
-      // Handle Vercel preview deployments
-      const subdomain = hostname.split('-')[0];
-      if (!subdomain || subdomain === 'admin') {
-        return NextResponse.redirect(new URL(process.env.ADMIN_DOMAIN!, request.url));
-      }
-      storeDomain = subdomain;
+      // Handle store subdomains on vercel.app
+      const storePart = hostname.split('.')[0];
+      // Remove 'preview-ecoreact' prefix if present
+      storeDomain = storePart.replace('preview-ecoreact-', '');
     } else {
-      // Handle production domain
+      // For any other domains, treat them as potential store domains
       const parts = hostname.split('.');
       if (parts.length < 2) {
-        return NextResponse.redirect(new URL(process.env.ADMIN_DOMAIN!, request.url));
+        return NextResponse.redirect(new URL('https://preview-ecoreact.vercel.app', request.url));
       }
-      
-      const subdomain = parts[0];
-      if (!subdomain || subdomain === 'admin') {
-        return NextResponse.redirect(new URL(process.env.ADMIN_DOMAIN!, request.url));
-      }
-      storeDomain = subdomain;
+      storeDomain = parts[0];
     }
 
     // Handle store routes
@@ -82,7 +75,7 @@ export async function middleware(request: NextRequest) {
 
     // For protected store routes, verify customer auth
     if (!pathname.startsWith('/api')) {
-      const customerToken = request.cookies.get('customer_token')?.value;
+      const customerToken = await request.cookies.get('customer_token')?.value;
       if (!customerToken) {
         return NextResponse.redirect(new URL(`/store/${storeDomain}/signin`, request.url));
       }
@@ -96,7 +89,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   } catch (error) {
     console.error('[Middleware Error]', error);
-    return NextResponse.next();
+    return NextResponse.redirect(new URL('https://preview-ecoreact.vercel.app', request.url));
   }
 }
 

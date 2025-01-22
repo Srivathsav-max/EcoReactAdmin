@@ -10,9 +10,11 @@ const SuppliersPage = async ({
 }: {
   params: { storeId: string }
 }) => {
+  const { storeId } = await params;
+  
   const suppliers = await prismadb.supplier.findMany({
     where: {
-      storeId: params.storeId
+      storeId
     },
     orderBy: {
       createdAt: 'desc'
@@ -38,4 +40,4 @@ const SuppliersPage = async ({
   );
 };
 
-export default SuppliersPage; 
+export default SuppliersPage;

@@ -21,7 +21,8 @@ type Session = AdminSession | CustomerSession;
 // Main session getter
 export async function getSession(): Promise<Session | null> {
   try {
-    const token = cookies().get('token')?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
 
     if (!token) {
       return null;

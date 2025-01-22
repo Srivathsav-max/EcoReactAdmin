@@ -8,9 +8,11 @@ const TaxonomiesPage = async ({
 }: {
   params: { storeId: string }
 }) => {
+  const { storeId } = await params;
+  
   const taxonomies = await prismadb.taxonomy.findMany({
     where: {
-      storeId: params.storeId
+      storeId
     },
     include: {
       _count: {

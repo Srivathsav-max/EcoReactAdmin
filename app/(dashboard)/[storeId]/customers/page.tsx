@@ -8,9 +8,11 @@ const CustomersPage = async ({
 }: {
   params: { storeId: string }
 }) => {
+  const { storeId } = await params;
+  
   const customers = await prismadb.customer.findMany({
     where: {
-      storeId: params.storeId
+      storeId
     },
     include: {
       addresses: {

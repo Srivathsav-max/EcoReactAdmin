@@ -10,9 +10,11 @@ const AttributesPage = async ({
 }: {
   params: { storeId: string }
 }) => {
+  const { storeId } = await params;
+  
   const attributes = await prismadb.attribute.findMany({
     where: {
-      storeId: params.storeId
+      storeId
     },
     orderBy: {
       createdAt: 'desc'
@@ -39,4 +41,4 @@ const AttributesPage = async ({
   );
 };
 
-export default AttributesPage; 
+export default AttributesPage;
