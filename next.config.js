@@ -10,7 +10,6 @@ const nextConfig = {
     ]
   },
   typescript: {
-    // Keep type checking during development, but ignore during build
     ignoreBuildErrors: true
   },
   transpilePackages: [
