@@ -181,12 +181,7 @@ export function Sidebar({ store }: SidebarProps) {
           label: "Billboards",
           href: `/${params.storeId}/billboards`,
           active: pathname === `/${params.storeId}/billboards`,
-          icon: <Image 
-            src={store?.logoUrl || '/placeholder.jpg'} 
-            alt={store?.name || 'Store logo'}
-            className="object-cover"
-            fill
-          />
+          icon: <Image className="h-4 w-4" />
         },
         {
           label: "Reviews",
