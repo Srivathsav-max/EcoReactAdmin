@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { ImagePlus, Trash } from "lucide-react";
-import { storage } from "@/lib/appwrite-config";
-import { ID } from "appwrite";
+import { uploadFile, getFilePreviewUrl, deleteFile } from "@/lib/appwrite-config";
+import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 
 interface ImageUploadProps {
@@ -19,7 +19,7 @@ const ImageUpload = ({
   onChange,
   onRemove,
   value
-}: ImageUploadProps): React.ReactElement => {
+}: ImageUploadProps) => {
   const [isMounted, setIsMounted] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -34,22 +34,34 @@ const ImageUpload = ({
       setIsUploading(true);
       const file = e.target.files[0];
       
-      const result = await storage.createFile(
-        process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID!,
-        ID.unique(),
-        file
-      );
-
-      const fileUrl = storage.getFileView(
-        process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID!,
-        result.$id
-      ).toString();
+      // Upload file and get file ID
+      const fileId = await uploadFile(file);
+      
+      // Get preview URL
+      const fileUrl = await getFilePreviewUrl(fileId);
 
       onChange(fileUrl);
+      toast.success("Image uploaded successfully");
     } catch (error) {
       console.error('Error uploading image:', error);
+      toast.error("Failed to upload image. Please try again.");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleRemove = async (url: string) => {
+    try {
+      // Extract fileId from URL
+      const urlParts = url.split('/');
+      const fileId = urlParts[urlParts.length - 1];
+      
+      await deleteFile(fileId);
+      onRemove(url);
+      toast.success("Image removed successfully");
+    } catch (error) {
+      console.error('Error removing image:', error);
+      toast.error("Failed to remove image. Please try again.");
     }
   };
 
@@ -65,10 +77,10 @@ const ImageUpload = ({
             <div className="z-10 absolute top-2 right-2">
               <Button
                 type="button"
-                onClick={() => onRemove(url)}
+                onClick={() => handleRemove(url)}
                 variant="destructive"
                 size="sm"
-                disabled={disabled}
+                disabled={disabled || isUploading}
               >
                 <Trash className="h-4 w-4" />
               </Button>
@@ -102,7 +114,7 @@ const ImageUpload = ({
             className="w-full"
           >
             <ImagePlus className="h-4 w-4 mr-2" />
-            Upload an Image
+            {isUploading ? "Uploading..." : "Upload an Image"}
           </Button>
         </label>
       </div>

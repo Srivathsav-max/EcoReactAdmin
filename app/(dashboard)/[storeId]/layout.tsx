@@ -36,13 +36,15 @@ export default async function DashboardLayout({
   });
 
   return (
-    <div className="relative h-full">
+    <div className="relative min-h-screen">
       <div className="hidden h-full md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 z-[80] bg-background">
         <Sidebar store={store} />
       </div>
-      <main className="md:pl-72">
+      <main className="md:pl-72 flex flex-col min-h-screen">
         <Navbar stores={stores} />
-        {children}
+        <div className="flex-grow p-4 pb-16">
+          {children}
+        </div>
       </main>
     </div>
   );

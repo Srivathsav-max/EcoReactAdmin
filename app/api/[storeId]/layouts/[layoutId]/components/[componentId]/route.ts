@@ -8,7 +8,7 @@ export async function PATCH(
   { params }: { params: { storeId: string, layoutId: string, componentId: string } }
 ) {
   try {
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     const token = cookieStore.get('token')?.value;
     
     if (!token) {
@@ -23,10 +23,36 @@ export async function PATCH(
     const body = await req.json();
     const { isVisible, config, type } = body;
 
+    console.log('Received update request:', { type, isVisible, componentId: params.componentId });
+
     if (!params.componentId) {
       return new NextResponse("Component ID is required", { status: 400 });
     }
 
+    // Validate config based on component type
+    if (type === 'sliding-banners') {
+      console.log('Validating sliding banners config:', config);
+
+      if (!config.banners || !Array.isArray(config.banners)) {
+        return new NextResponse("Invalid sliding banners configuration: banners array is required", { status: 400 });
+      }
+
+      if (config.banners.length === 0) {
+        return new NextResponse("At least one banner is required", { status: 400 });
+      }
+
+      for (const banner of config.banners) {
+        if (!banner.id || !banner.label || !banner.imageUrl) {
+          return new NextResponse("Each banner must have an id, label, and imageUrl", { status: 400 });
+        }
+      }
+
+      if (typeof config.interval !== 'number' || config.interval < 1000) {
+        return new NextResponse("Invalid sliding banners configuration: interval must be a number >= 1000", { status: 400 });
+      }
+    }
+
+    // Verify store ownership
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
@@ -35,29 +61,58 @@ export async function PATCH(
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+      return new NextResponse("Unauthorized", { status: 403 });
     }
 
-    // Update component using raw query
-    await prismadb.$executeRaw`
-      UPDATE "LayoutComponent"
-      SET 
-        "isVisible" = COALESCE(${isVisible}, "isVisible"),
-        "config" = COALESCE(${config ? JSON.stringify(config) : null}, "config"),
-        "type" = COALESCE(${type}, "type"),
-        "updatedAt" = NOW()
-      WHERE id = ${params.componentId}
-    `;
+    // Verify component exists and belongs to layout
+    const existingComponent = await prismadb.layoutComponent.findFirst({
+      where: {
+        id: params.componentId,
+        layoutId: params.layoutId
+      }
+    });
 
-    const updatedComponent = await prismadb.$queryRaw<Array<any>>`
-      SELECT * FROM "LayoutComponent"
-      WHERE id = ${params.componentId}
-    `;
-  
-    return NextResponse.json(updatedComponent[0]);
+    if (!existingComponent) {
+      return new NextResponse("Component not found", { status: 404 });
+    }
+
+    console.log('Updating component with config:', {
+      type,
+      isVisible,
+      configSummary: JSON.stringify(config).substring(0, 100) + '...'
+    });
+
+    // Update component using Prisma client for better type safety
+    const updatedComponent = await prismadb.layoutComponent.update({
+      where: {
+        id: params.componentId,
+      },
+      data: {
+        isVisible: isVisible ?? undefined,
+        config: config ? config : undefined,
+        type: type ?? undefined,
+      }
+    });
+
+    console.log('Component updated successfully:', updatedComponent.id);
+
+    return NextResponse.json(updatedComponent);
   } catch (error) {
-    console.log('[LAYOUT_COMPONENT_PATCH]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[LAYOUT_COMPONENT_PATCH] Error:', error);
+    
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "Failed to update component";
+    
+    if (errorMessage.includes('not found')) {
+      return new NextResponse("Component not found", { status: 404 });
+    }
+    
+    if (errorMessage.includes('validation')) {
+      return new NextResponse(errorMessage, { status: 400 });
+    }
+    
+    return new NextResponse(`Error updating component: ${errorMessage}`, { status: 500 });
   }
 }
 
@@ -66,7 +121,7 @@ export async function DELETE(
   { params }: { params: { storeId: string, layoutId: string, componentId: string } }
 ) {
   try {
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     const token = cookieStore.get('token')?.value;
     
     if (!token) {
@@ -82,6 +137,7 @@ export async function DELETE(
       return new NextResponse("Component ID is required", { status: 400 });
     }
 
+    // Verify store ownership
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
@@ -90,18 +146,44 @@ export async function DELETE(
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+      return new NextResponse("Unauthorized", { status: 403 });
     }
 
-    // Delete component using raw query
-    await prismadb.$executeRaw`
-      DELETE FROM "LayoutComponent"
-      WHERE id = ${params.componentId}
-    `;
+    // Verify component exists and belongs to layout
+    const existingComponent = await prismadb.layoutComponent.findFirst({
+      where: {
+        id: params.componentId,
+        layoutId: params.layoutId
+      }
+    });
+
+    if (!existingComponent) {
+      return new NextResponse("Component not found", { status: 404 });
+    }
+
+    console.log('Deleting component:', params.componentId);
+
+    // Delete component using Prisma client
+    await prismadb.layoutComponent.delete({
+      where: {
+        id: params.componentId
+      }
+    });
+
+    console.log('Component deleted successfully');
   
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.log('[LAYOUT_COMPONENT_DELETE]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[LAYOUT_COMPONENT_DELETE] Error:', error);
+    
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "Failed to delete component";
+    
+    if (errorMessage.includes('not found')) {
+      return new NextResponse("Component not found", { status: 404 });
+    }
+    
+    return new NextResponse(`Error deleting component: ${errorMessage}`, { status: 500 });
   }
 }

@@ -8,7 +8,8 @@ export async function POST(
   { params }: { params: { storeId: string, layoutId: string } }
 ) {
   try {
-    const cookieStore = await cookies();
+    const { storeId, layoutId } = params;
+    const cookieStore = cookies();
     const token = cookieStore.get('token')?.value;
     
     if (!token) {
@@ -21,39 +22,41 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { type, config } = body;
+    const { type, position } = body;
+
+    console.log('[POST] Creating component:', { type, position, layoutId, storeId });
 
     if (!type) {
       return new NextResponse("Type is required", { status: 400 });
     }
 
-    if (!params.layoutId) {
+    if (typeof position !== 'number') {
+      return new NextResponse("Position is required", { status: 400 });
+    }
+
+    if (!layoutId) {
       return new NextResponse("Layout id is required", { status: 400 });
     }
 
-    const storeByUserId = await prismadb.store.findFirst({
+    // Verify layout belongs to store
+    const layout = await prismadb.homeLayout.findFirst({
       where: {
-        id: params.storeId,
-        userId: session.userId,
+        id: layoutId,
+        storeId: storeId,
       }
     });
 
-    if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+    console.log('[POST] Found layout:', layout);
+
+    if (!layout) {
+      return new NextResponse("Layout not found", { status: 404 });
     }
 
-    // Find the current highest position
-    const existingComponents = await prismadb.$queryRaw<Array<{ position: number }>>`
-      SELECT position FROM "LayoutComponent" 
-      WHERE "layoutId" = ${params.layoutId} 
-      ORDER BY position DESC 
-      LIMIT 1
-    `;
-
-    const newPosition = existingComponents.length > 0 ? existingComponents[0].position + 1 : 0;
-
-    // Initialize default config based on component type
+    // Create new component with default config based on type
     let defaultConfig = {};
+    const uniqueId = crypto.randomUUID();
+    console.log('[POST] Generated unique ID:', uniqueId);
+
     switch (type) {
       case 'billboard':
         defaultConfig = {
@@ -87,83 +90,59 @@ export async function POST(
           displayStyle: 'grid'
         };
         break;
+      case 'sliding-banners':
+        defaultConfig = {
+          interval: 5000,
+          banners: [{
+            id: uniqueId,
+            label: '',
+            imageUrl: '',
+            link: ''
+          }]
+        };
+        break;
+      default:
+        defaultConfig = {};
     }
 
-    // Merge provided config with default config
-    const finalConfig = { ...defaultConfig, ...(config || {}) };
+    console.log('[POST] Using default config:', defaultConfig);
 
-    // Create new component
-    const component = await prismadb.$executeRaw`
-      INSERT INTO "LayoutComponent" ("id", "layoutId", "type", "position", "config", "isVisible", "createdAt", "updatedAt")
-      VALUES (
-        ${crypto.randomUUID()},
-        ${params.layoutId},
-        ${type},
-        ${newPosition},
-        ${JSON.stringify(finalConfig)},
-        true,
-        NOW(),
-        NOW()
-      )
-      RETURNING *
-    `;
+    try {
+      // Create component
+      const component = await prismadb.layoutComponent.create({
+        data: {
+          type,
+          position,
+          config: defaultConfig,
+          layoutId
+        }
+      });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.log('[LAYOUT_COMPONENTS_POST]', error);
-    return new NextResponse("Internal error", { status: 500 });
-  }
-}
+      console.log('[POST] Created component:', component);
 
-export async function GET(
-  req: Request,
-  { params }: { params: { storeId: string, layoutId: string } }
-) {
-  try {
-    if (!params.layoutId) {
-      return new NextResponse("Layout id is required", { status: 400 });
+      // Update positions of other components
+      await prismadb.$executeRaw`
+        UPDATE "LayoutComponent"
+        SET position = position + 1
+        WHERE "layoutId" = ${layoutId}
+          AND position >= ${position}
+          AND id != ${component.id}
+      `;
+
+      return NextResponse.json(component);
+    } catch (dbError) {
+      console.error('[POST] Database error:', dbError);
+      return new NextResponse(
+        "Database error: " + (dbError instanceof Error ? dbError.message : "Unknown error"), 
+        { status: 500 }
+      );
     }
-
-    // Get components with their data
-    const components = await prismadb.$queryRaw<Array<any>>`
-      WITH component_data AS (
-        SELECT 
-          lc.*,
-          CASE 
-            WHEN lc.type IN ('featured-products', 'products-grid', 'products-carousel') 
-            THEN (
-              SELECT json_agg(p.*)
-              FROM "Product" p
-              WHERE p.id = ANY(ARRAY(SELECT jsonb_array_elements_text(lc.config->'productIds')))
-            )
-            WHEN lc.type = 'categories' 
-            THEN (
-              SELECT json_agg(t.*)
-              FROM "Taxon" t
-              WHERE t.id = ANY(ARRAY(SELECT jsonb_array_elements_text(lc.config->'categoryIds')))
-            )
-            ELSE NULL
-          END as related_data
-        FROM "LayoutComponent" lc
-        WHERE lc."layoutId" = ${params.layoutId}
-      )
-      SELECT 
-        cd.*,
-        CASE 
-          WHEN cd.type IN ('featured-products', 'products-grid', 'products-carousel') 
-          THEN jsonb_set(cd.config::jsonb, '{products}', COALESCE(cd.related_data::jsonb, '[]'::jsonb))
-          WHEN cd.type = 'categories' 
-          THEN jsonb_set(cd.config::jsonb, '{categories}', COALESCE(cd.related_data::jsonb, '[]'::jsonb))
-          ELSE cd.config::jsonb
-        END as config
-      FROM component_data cd
-      ORDER BY cd.position ASC
-    `;
-
-    return NextResponse.json(components);
   } catch (error) {
-    console.log('[LAYOUT_COMPONENTS_GET]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[POST] General error:', error);
+    return new NextResponse(
+      "Internal error: " + (error instanceof Error ? error.message : "Unknown error"), 
+      { status: 500 }
+    );
   }
 }
 
@@ -172,7 +151,8 @@ export async function PATCH(
   { params }: { params: { storeId: string, layoutId: string } }
 ) {
   try {
-    const cookieStore = await cookies();
+    const { storeId, layoutId } = params;
+    const cookieStore = cookies();
     const token = cookieStore.get('token')?.value;
     
     if (!token) {
@@ -187,36 +167,80 @@ export async function PATCH(
     const body = await req.json();
     const { components } = body;
 
-    if (!components || !Array.isArray(components)) {
-      return new NextResponse("Components array is required", { status: 400 });
+    if (!Array.isArray(components)) {
+      return new NextResponse("Invalid components array", { status: 400 });
     }
 
-    const storeByUserId = await prismadb.store.findFirst({
+    // Verify layout belongs to store
+    const layout = await prismadb.homeLayout.findFirst({
       where: {
-        id: params.storeId,
-        userId: session.userId,
+        id: layoutId,
+        storeId: storeId,
       }
     });
 
-    if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+    if (!layout) {
+      return new NextResponse("Layout not found", { status: 404 });
     }
 
-    // Update all component positions using raw query
-    await Promise.all(
-      components.map(async (component: { id: string, position: number }) => {
-        await prismadb.$executeRaw`
-          UPDATE "LayoutComponent"
-          SET position = ${component.position},
-              "updatedAt" = NOW()
-          WHERE id = ${component.id}
-        `;
-      })
+    // Update all components in a transaction
+    await prismadb.$transaction(
+      components.map((component: { id: string; position: number }) =>
+        prismadb.layoutComponent.update({
+          where: {
+            id: component.id,
+            layoutId
+          },
+          data: { position: component.position }
+        })
+      )
     );
-  
-    return NextResponse.json({ success: true });
+
+    const updatedComponents = await prismadb.layoutComponent.findMany({
+      where: {
+        layoutId
+      },
+      orderBy: {
+        position: 'asc'
+      }
+    });
+
+    return NextResponse.json(updatedComponents);
   } catch (error) {
-    console.log('[LAYOUT_COMPONENTS_PATCH]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[PATCH] General error:', error);
+    return new NextResponse(
+      "Internal error: " + (error instanceof Error ? error.message : "Unknown error"),
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(
+  req: Request,
+  { params }: { params: { storeId: string, layoutId: string } }
+) {
+  try {
+    const { layoutId } = params;
+    
+    if (!layoutId) {
+      return new NextResponse("Layout id is required", { status: 400 });
+    }
+
+    const components = await prismadb.layoutComponent.findMany({
+      where: {
+        layoutId
+      },
+      orderBy: {
+        position: 'asc'
+      }
+    });
+
+    return NextResponse.json(components);
+  } catch (error) {
+    console.error('[GET] General error:', error);
+    return new NextResponse(
+      "Internal error: " + (error instanceof Error ? error.message : "Unknown error"),
+      { status: 500 }
+    );
   }
 }

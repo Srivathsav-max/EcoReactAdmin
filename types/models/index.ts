@@ -279,15 +279,26 @@ export interface CategoriesConfig extends BaseComponentConfig {
   displayStyle: 'grid' | 'carousel';
 }
 
-export type ComponentConfig = 
-  | BillboardConfig 
-  | ProductsConfig 
-  | BannerConfig 
-  | CategoriesConfig;
+export interface SlidingBannersConfig extends BaseComponentConfig {
+  interval: number;
+  banners: Array<{
+    id: string;
+    label: string;
+    imageUrl: string;
+    link?: string;
+  }>;
+}
+
+export type ComponentConfig =
+  | BillboardConfig
+  | ProductsConfig
+  | BannerConfig
+  | CategoriesConfig
+  | SlidingBannersConfig;
 
 export interface LayoutComponent {
   id: string;
-  type: 'billboard' | 'featured-products' | 'banner' | 'categories' | 'products-grid' | 'products-carousel';
+  type: 'billboard' | 'featured-products' | 'banner' | 'categories' | 'products-grid' | 'products-carousel' | 'sliding-banners';
   config: ComponentConfig;
   position: number;
   isVisible: boolean;

@@ -6,11 +6,27 @@ import { ProductsList } from "./components/products-list";
 import { BannerComponent } from "./components/banner";
 import { CategoriesGrid } from "./components/categories-grid";
 import { ProductsCarousel } from "./components/products-carousel";
+import { SlidingBanners } from "./components/sliding-banners";
+
+interface ComponentConfig {
+  label?: string;
+  imageUrl?: string;
+  title?: string;
+  products?: any[];
+  categories?: any[];
+  banners?: Array<{
+    id: string;
+    label: string;
+    imageUrl: string;
+    link?: string;
+  }>;
+  interval?: number;
+}
 
 interface LayoutComponent {
   id: string;
   type: string;
-  config: Record<string, any>;
+  config: ComponentConfig;
   position: number;
   isVisible: boolean;
 }
@@ -56,61 +72,74 @@ const HomePage = async ({
   const components = activeLayout?.components || [];
 
   return (
-    <div className="pb-10">
+    <main className="flex-grow">
+      <div className="space-y-10 pb-10">
       {components
         .filter((component: LayoutComponent) => component.isVisible)
         .map((component: LayoutComponent) => {
-          switch (component.type) {
-            case 'billboard':
-              return (
-                <Billboard
-                  key={component.id}
-                  data={component.config}
-                />
-              );
-            case 'featured-products':
-              return (
-                <ProductsList
-                  key={component.id}
-                  title="Featured Products"
-                  items={component.config.products || []}
-                />
-              );
-            case 'banner':
-              return (
-                <BannerComponent
-                  key={component.id}
-                  data={component.config}
-                />
-              );
-            case 'categories':
-              return (
-                <CategoriesGrid
-                  key={component.id}
-                  categories={component.config.categories || []}
-                />
-              );
-            case 'products-grid':
-              return (
-                <ProductsList
-                  key={component.id}
-                  title={component.config.title || "Products"}
-                  items={component.config.products || []}
-                />
-              );
-            case 'products-carousel':
-              return (
-                <ProductsCarousel
-                  key={component.id}
-                  title={component.config.title || "Products"}
-                  items={component.config.products || []}
-                />
-              );
-            default:
-              return null;
-          }
-      })}
-    </div>
+          const renderComponent = () => {
+            switch (component.type) {
+              case 'billboard':
+                return (
+                  <Billboard
+                    data={component.config}
+                  />
+                );
+              case 'featured-products':
+                return (
+                  <ProductsList
+                    title="Featured Products"
+                    items={component.config.products || []}
+                  />
+                );
+              case 'banner':
+                return (
+                  <BannerComponent
+                    data={component.config}
+                  />
+                );
+              case 'categories':
+                return (
+                  <CategoriesGrid
+                    categories={component.config.categories || []}
+                  />
+                );
+              case 'products-grid':
+                return (
+                  <ProductsList
+                    title={component.config.title || "Products"}
+                    items={component.config.products || []}
+                  />
+                );
+              case 'products-carousel':
+                return (
+                  <ProductsCarousel
+                    title={component.config.title || "Products"}
+                    items={component.config.products || []}
+                  />
+                );
+              case 'sliding-banners':
+                return (
+                  <SlidingBanners
+                    banners={component.config.banners || []}
+                    interval={component.config.interval || 5000}
+                  />
+                );
+              default:
+                return null;
+            }
+          };
+
+          return (
+            <div key={component.id}>
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                {renderComponent()}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </main>
   );
 }
 

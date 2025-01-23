@@ -219,10 +219,10 @@ export function Sidebar({ store }: SidebarProps) {
   ];
 
   return (
-    <div className={cn("pb-12 min-h-screen border-r")}>
+    <div className={cn("pb-12 min-h-screen border-r relative")}>
       <div className="space-y-4 py-4 h-full overflow-y-auto max-h-screen">
         <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-lg font-semibold sticky top-0 bg-background z-10">
+          <h2 className="mb-2 px-4 text-lg font-semibold sticky top-0 bg-background z-50">
             Store Management
           </h2>
           <div className="space-y-1">
