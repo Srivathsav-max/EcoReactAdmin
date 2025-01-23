@@ -1,116 +1,112 @@
-import prismadb from "@/lib/prismadb";
-import { ProductTabs } from "./components/product-tabs";
+"use client";
 
-const ProductPage = async ({
-  params
-}: {
-  params: { productId: string, storeId: string }
-}) => {
-  const store = await prismadb.store.findFirst({
-    where: {
-      id: params.storeId
-    }
+import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
+
+import { ProductForm } from "./components/product-form";
+import { Spinner } from "@/components/ui/spinner";
+import { PageData } from "@/types";
+
+const ProductPage = () => {
+  const params = useParams();
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<PageData>({
+    product: null,
+    brands: [],
+    colors: [],
+    sizes: [],
+    taxonomies: [],
+    store: null
   });
 
-  if (!store) {
-    throw new Error("Store not found");
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const fetchPromises = [
+          // Fetch brands
+          fetch(`/api/${params.storeId}/brands`),
+          // Fetch colors
+          fetch(`/api/${params.storeId}/colors`),
+          // Fetch sizes
+          fetch(`/api/${params.storeId}/sizes`),
+          // Fetch taxonomies
+          fetch(`/api/${params.storeId}/taxonomies`),
+          // Fetch store settings
+          fetch(`/api/${params.storeId}/store`),
+        ];
+
+        // Add product fetch if we're editing
+        if (params.productId !== "new") {
+          fetchPromises.push(fetch(`/api/${params.storeId}/products/${params.productId}`));
+        }
+
+        const responses = await Promise.all(fetchPromises);
+        const [
+          brandsRes,
+          colorsRes,
+          sizesRes,
+          taxonomiesRes,
+          storeRes,
+          ...rest
+        ] = responses;
+
+        const [
+          brands,
+          colors,
+          sizes,
+          taxonomies,
+          store,
+          ...others
+        ] = await Promise.all([
+          brandsRes.json(),
+          colorsRes.json(),
+          sizesRes.json(),
+          taxonomiesRes.json(),
+          storeRes.json(),
+          ...rest.map(r => r?.json())
+        ]);
+
+        setData({
+          product: others[0] || null,
+          brands,
+          colors,
+          sizes,
+          taxonomies,
+          store
+        });
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [params.productId, params.storeId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Spinner size={32} />
+      </div>
+    );
   }
 
-  const product = params.productId === "new" ? null : await prismadb.product.findUnique({
-    where: {
-      id: params.productId
-    },
-    include: {
-      images: true,
-      taxons: true,
-      variants: {
-        include: {
-          color: true,
-          size: true,
-          stockItems: true
-        }
-      },
-      properties: true
-    }
-  });
-
-  const sizes = await prismadb.size.findMany({
-    where: {
-      storeId: params.storeId
-    }
-  });
-
-  const colors = await prismadb.color.findMany({
-    where: {
-      storeId: params.storeId
-    }
-  });
-
-  const brands = await prismadb.brand.findMany();
-
-  // Format the variant data if it exists
-  const formattedProduct = product ? {
-    id: product.id,
-    name: product.name,
-    description: product.description,
-    price: product.price ? parseFloat(product.price.toString()) : 0,
-    costPrice: product.costPrice ? parseFloat(product.costPrice.toString()) : null,
-    compareAtPrice: product.compareAtPrice ? parseFloat(product.compareAtPrice.toString()) : null,
-    taxRate: product.taxRate ? parseFloat(product.taxRate.toString()) : null,
-    weight: product.weight ? parseFloat(product.weight.toString()) : null,
-    height: product.height ? parseFloat(product.height.toString()) : null,
-    width: product.width ? parseFloat(product.width.toString()) : null,
-    depth: product.depth ? parseFloat(product.depth.toString()) : null,
-    status: product.status,
-    images: product.images,
-    taxons: product.taxons,
-    variants: product.variants?.map(variant => ({
-      ...variant,
-      price: parseFloat(variant.price.toString())
-    })),
-    properties: product.properties,
-    // SEO fields
-    slug: product.slug || "",
-    metaTitle: product.metaTitle || "",
-    metaDescription: product.metaDescription || "",
-    metaKeywords: product.metaKeywords || "",
-    // Shipping fields
-    shippingCategory: product.shippingCategory || ""
-  } : null;
-
-  const taxonomies = await prismadb.taxonomy.findMany({
-    where: {
-      storeId: params.storeId,
-    },
-    include: {
-      taxons: {
-        include: {
-          children: {
-            include: {
-              children: true
-            }
-          }
-        }
-      }
-    }
-  });
-
-  return ( 
+  return (
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <ProductTabs
-          initialData={formattedProduct}
-          sizes={sizes}
-          colors={colors}
-          taxonomies={taxonomies}
-          initialTaxons={product?.taxons || []}
-          storeCurrency={store.currency || 'USD'}
-          storeLocale={store.locale || 'en-US'}
-          brands={brands}
+        <ProductForm 
+          initialData={data.product}
+          brands={data.brands}
+          colors={data.colors}
+          sizes={data.sizes}
+          taxonomies={data.taxonomies}
+          storeCurrency={data.store?.currency || "USD"}
+          storeLocale={data.store?.locale || "en-US"}
         />
       </div>
     </div>
   );
-}
+};
 
 export default ProductPage;

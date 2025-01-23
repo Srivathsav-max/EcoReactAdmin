@@ -1,50 +1,51 @@
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
-import { verifyAuth } from "@/lib/auth";
-import { cookies } from "next/headers";
+import { getAdminSession } from "@/lib/auth";
 
 export async function POST(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const session = await getAdminSession();
 
-    const session = await verifyAuth(token);
-    
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
     const body = await req.json();
     
-    const { 
-      variantId,
-      count,
-      stockStatus = "in_stock",
-      reserved = 0,
-      backorderedQty = 0
-    } = body;
+    const { variantId, count = 0 } = body;
 
     if (!variantId) {
       return new NextResponse("Variant ID is required", { status: 400 });
     }
 
-    // Verify store ownership
-    const storeByUser = await prismadb.store.findFirst({
+    if (!params.storeId) {
+      return new NextResponse("Store id is required", { status: 400 });
+    }
+
+    const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       }
     });
 
-    if (!storeByUser) {
-      return new NextResponse("Unauthorized", { status: 403 });
+    if (!storeByUserId) {
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
+    }
+
+    // Check if stock item already exists for this variant and store
+    const existingStockItem = await prismadb.stockItem.findFirst({
+      where: {
+        variantId,
+        storeId: params.storeId,
+      }
+    });
+
+    if (existingStockItem) {
+      return new NextResponse("Stock item already exists for this variant", { status: 400 });
     }
 
     const stockItem = await prismadb.stockItem.create({
@@ -52,19 +53,9 @@ export async function POST(
         variantId,
         storeId: params.storeId,
         count,
-        stockStatus,
-        reserved,
-        backorderedQty
-      },
-      include: {
-        variant: {
-          include: {
-            product: true
-          }
-        }
       }
     });
-
+  
     return NextResponse.json(stockItem);
   } catch (error) {
     console.log('[STOCK_ITEMS_POST]', error);
@@ -77,33 +68,36 @@ export async function GET(
   { params }: { params: { storeId: string } }
 ) {
   try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
+    }
+
+    if (!params.storeId) {
+      return new NextResponse("Store id is required", { status: 400 });
+    }
+
     const { searchParams } = new URL(req.url);
     const variantId = searchParams.get('variantId');
-    const stockStatus = searchParams.get('stockStatus');
 
     const stockItems = await prismadb.stockItem.findMany({
       where: {
         storeId: params.storeId,
         ...(variantId && { variantId }),
-        ...(stockStatus && { stockStatus })
       },
       include: {
         variant: {
           include: {
-            product: true,
-            color: true,
-            size: true
+            product: true
           }
         }
-      },
-      orderBy: {
-        createdAt: 'desc'
       }
     });
-
+  
     return NextResponse.json(stockItems);
   } catch (error) {
     console.log('[STOCK_ITEMS_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-} 
+}

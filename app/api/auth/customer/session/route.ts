@@ -1,33 +1,20 @@
 import { NextResponse } from "next/server";
-import { verifyAuth, isCustomer } from "@/lib/auth";
+import { getCustomerSession } from "@/lib/auth";
 
-export async function GET(
-  req: Request
-) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(req.url);
-    const storeId = searchParams.get('storeId');
+    const session = await getCustomerSession();
 
-    if (!storeId) {
-      return new NextResponse("Store ID is required", { status: 400 });
-    }
-
-    const session = await verifyAuth();
-
-    if (!session || !isCustomer(session) || session.storeId !== storeId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!session) {
+      return NextResponse.json(null);
     }
 
     return NextResponse.json({
-      user: {
-        id: session.customerId,
-        email: session.email,
-        role: 'customer',
-        storeId: session.storeId
-      }
+      ...session,
+      authenticated: true
     });
   } catch (error) {
-    console.log('[CUSTOMER_SESSION]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[CUSTOMER_SESSION_GET]', error);
+    return NextResponse.json(null);
   }
 }

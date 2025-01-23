@@ -1,12 +1,22 @@
-import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
-import { validatePrice } from "@/lib/utils";
+import { NextResponse } from "next/server";
+import { getAdminSession } from "@/lib/auth";
+import { deleteFile } from "@/lib/appwrite-config";
 
 export async function POST(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access. Admin authentication required."
+      }, { status: 401 });
+    }
+
     const body = await req.json();
 
     const { 
@@ -14,92 +24,134 @@ export async function POST(
       description,
       price,
       images,
-      colorId,
-      sizeId,
-      isFeatured,
-      isArchived,
-      taxonIds,
-      // New fields
-      slug,
-      metaTitle,
-      metaDescription,
-      metaKeywords,
-      sku,
-      costPrice,
-      compareAtPrice,
+      brandId,
+      isVisible,
       status,
-      availableOn,
-      discontinueOn,
-      taxCategory,
-      shippingCategory,
+      hasVariants,
+      sku,
+      barcode,
+      tags = [],
+      taxons = [],
+      taxRate,
       weight,
       height,
       width,
       depth,
+      minimumQuantity,
+      maximumQuantity,
+      optionTypes = [],
     } = body;
 
     if (!name) {
-      return new NextResponse("Name is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Name is required"
+      }, { status: 400 });
+    }
+
+    if (!images || !images.length) {
+      return NextResponse.json({
+        success: false,
+        message: "At least one image is required"
+      }, { status: 400 });
+    }
+
+    if (!price) {
+      return NextResponse.json({
+        success: false,
+        message: "Price is required"
+      }, { status: 400 });
     }
 
     if (!params.storeId) {
-      return new NextResponse("Store id is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Store ID is required"
+      }, { status: 400 });
     }
 
-    // Generate slug if not provided
-    const finalSlug = slug || name.toLowerCase().replace(/\s+/g, '-');
+    const storeByUserId = await prismadb.store.findFirst({
+      where: {
+        id: params.storeId,
+        userId: session.userId,
+      }
+    });
+
+    if (!storeByUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access to this store"
+      }, { status: 403 });
+    }
+
+    // Generate slug from name
+    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
 
     const product = await prismadb.product.create({
       data: {
         name,
-        slug: finalSlug,
+        slug,
         description,
-        storeId: params.storeId,
-        price: price ? parseFloat(price) : null,
-        costPrice: costPrice ? parseFloat(costPrice) : null,
-        compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
-        status: status || 'draft',
-        metaTitle,
-        metaDescription,
-        metaKeywords,
+        price: parseFloat(price.toString()),
+        brandId,
         sku,
-        availableOn,
-        discontinueOn,
-        taxCategory,
-        shippingCategory,
-        weight: weight ? parseFloat(weight) : null,
-        height: height ? parseFloat(height) : null,
-        width: width ? parseFloat(width) : null,
-        depth: depth ? parseFloat(depth) : null,
-        isMaster: true,
-        colorId,
-        sizeId,
-        isFeatured,
-        isArchived,
+        barcode,
+        status,
+        isVisible,
+        hasVariants,
+        tags,
+        taxRate: taxRate ? parseFloat(taxRate.toString()) : undefined,
+        weight: weight ? parseFloat(weight.toString()) : undefined,
+        height: height ? parseFloat(height.toString()) : undefined,
+        width: width ? parseFloat(width.toString()) : undefined,
+        depth: depth ? parseFloat(depth.toString()) : undefined,
+        minimumQuantity: minimumQuantity || 1,
+        maximumQuantity,
+        storeId: params.storeId,
         images: {
           createMany: {
-            data: images.map((image: { url: string, fileId: string }) => ({
+            data: images.map((image: { url: string; fileId: string }) => ({
               url: image.url,
-              fileId: image.fileId
-            }))
-          }
+              fileId: image.fileId,
+            })),
+          },
         },
-        ...(taxonIds && taxonIds.length > 0 ? {
-          taxons: {
-            connect: taxonIds.map((id: string) => ({ id }))
-          }
-        } : {})
+        optionTypes: {
+          createMany: {
+            data: optionTypes.map((ot: any) => ({
+              name: ot.name,
+              presentation: ot.presentation,
+              position: ot.position,
+              storeId: params.storeId,
+            })),
+          },
+        },
+        taxons: {
+          connect: taxons.map((taxonId: string) => ({ id: taxonId })),
+        },
       },
       include: {
         images: true,
-        taxons: true
+        brand: true,
+        variants: {
+          include: {
+            stockItems: true,
+          }
+        },
+        taxons: true,
       }
     });
-  
-    return NextResponse.json(product);
+
+    return NextResponse.json({
+      success: true,
+      data: product
+    });
   } catch (error) {
-    console.log('[PRODUCTS_POST]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[PRODUCTS_POST]', error);
+    return NextResponse.json({
+      success: false,
+      message: "Failed to create product"
+    }, { status: 500 });
   }
 }
 
@@ -108,51 +160,75 @@ export async function GET(
   { params }: { params: { storeId: string } }
 ) {
   try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access. Admin authentication required."
+      }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
-    const colorId = searchParams.get('colorId') || undefined;
-    const sizeId = searchParams.get('sizeId') || undefined;
-    const isFeatured = searchParams.get('isFeatured');
+    const brandId = searchParams.get("brandId") || undefined;
+    const isVisible = searchParams.get("isVisible");
 
     if (!params.storeId) {
-      return new NextResponse("Store id is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Store ID is required"
+      }, { status: 400 });
+    }
+
+    const storeByUserId = await prismadb.store.findFirst({
+      where: {
+        id: params.storeId,
+        userId: session.userId,
+      }
+    });
+
+    if (!storeByUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access to this store"
+      }, { status: 403 });
     }
 
     const products = await prismadb.product.findMany({
       where: {
         storeId: params.storeId,
-        status: isFeatured ? 'active' : undefined,
-        variants: {
-          some: {
-            AND: [
-              colorId ? { colorId } : {},
-              sizeId ? { sizeId } : {},
-            ]
-          }
-        }
+        brandId: brandId || undefined,
+        isVisible: isVisible ? isVisible === 'true' : undefined,
       },
       include: {
         images: true,
-        taxons: {
-          include: {
-            taxonomy: true
-          }
-        },
+        brand: true,
         variants: {
           include: {
-            size: true,
-            color: true,
-            stockItems: true
+            stockItems: true,
           }
-        }
+        },
+        taxons: true,
+        optionTypes: {
+          include: {
+            optionValues: true,
+          }
+        },
       },
       orderBy: {
         createdAt: 'desc',
       }
     });
-  
-    return NextResponse.json(products);
+
+    return NextResponse.json({
+      success: true,
+      data: products
+    });
   } catch (error) {
-    console.log('[PRODUCTS_GET]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[PRODUCTS_GET]', error);
+    return NextResponse.json({
+      success: false,
+      message: "Failed to fetch products"
+    }, { status: 500 });
   }
 }

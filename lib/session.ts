@@ -1,32 +1,53 @@
-import { NextRequest } from "next/server";
-import jwt from 'jsonwebtoken';
+import { AdminSession, CustomerSession, verifyAuth, isAdmin } from "@/lib/auth";
 
-interface JWTPayload {
-  id: string;
-  email: string;
-  // add other fields that are in your JWT token
-}
-
-export async function getSession(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
-  
-  if (!token) {
-    return null;
-  }
-
+export const getCurrentUser = async () => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
-    return decoded;
-  } catch (error) {
-    return null;
-  }
-}
+    const session = await verifyAuth();
 
-export async function getCurrentUser(req: NextRequest) {
-  try {
-    const session = await getSession(req);
-    return session;
+    if (!session) {
+      return null;
+    }
+
+    // For admin routes, ensure we have admin access
+    if (isAdmin(session)) {
+      return {
+        id: session.userId,
+        email: session.email,
+        role: 'admin'
+      };
+    }
+
+    return null;
   } catch (error) {
+    console.error('[GET_CURRENT_USER_ERROR]', error);
     return null;
   }
-} 
+};
+
+export const getAuthSession = async () => {
+  try {
+    const session = await verifyAuth();
+
+    if (!session) {
+      return null;
+    }
+
+    if (isAdmin(session)) {
+      return {
+        user: {
+          id: session.userId,
+          email: session.email,
+          role: 'admin'
+        },
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[GET_AUTH_SESSION_ERROR]', error);
+    return null;
+  }
+};
+
+export type { AdminSession, CustomerSession };

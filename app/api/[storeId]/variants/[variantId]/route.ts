@@ -1,27 +1,54 @@
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
-import { verifyAuth } from "@/lib/auth";
-import { cookies } from "next/headers";
+import { getAdminSession } from "@/lib/auth";
 
 export async function GET(
   req: Request,
-  { params }: { params: { variantId: string, storeId: string } }
+  { params }: { params: { storeId: string, variantId: string } }
 ) {
   try {
-    if (!params.variantId) {
-      return new NextResponse("Variant id is required", { status: 400 });
+    const session = await getAdminSession();
+
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
-    const variant = await prismadb.variant.findUnique({
+    if (!params.variantId) {
+      return new NextResponse("Variant ID is required", { status: 400 });
+    }
+
+    const storeByUserId = await prismadb.store.findFirst({
+      where: {
+        id: params.storeId,
+        userId: session.userId,
+      }
+    });
+
+    if (!storeByUserId) {
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
+    }
+
+    const variant = await prismadb.variant.findFirst({
       where: {
         id: params.variantId,
+        product: {
+          storeId: params.storeId
+        }
       },
       include: {
-        product: true,
+        stockItems: true,
         color: true,
         size: true,
-        stockItems: true,
         images: true,
+        optionValues: {
+          include: {
+            optionValue: {
+              include: {
+                optionType: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -37,89 +64,84 @@ export async function PATCH(
   { params }: { params: { storeId: string, variantId: string } }
 ) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const session = await getAdminSession();
 
-    const session = await verifyAuth(token);
-    
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
     const body = await req.json();
     
     const { 
       name,
-      productId, 
-      colorId, 
-      sizeId, 
       price,
+      colorId,
+      sizeId,
       sku,
       stockCount,
       compareAtPrice,
       costPrice,
       allowBackorder,
-      lowStockAlert
+      lowStockAlert,
+      optionValues = []
     } = body;
 
-    if (!name) {
-      return new NextResponse("Name is required", { status: 400 });
+    if (!params.variantId) {
+      return new NextResponse("Variant ID is required", { status: 400 });
     }
 
-    // Verify store ownership
-    const storeByUser = await prismadb.store.findFirst({
+    const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       }
     });
 
-    if (!storeByUser) {
-      return new NextResponse("Unauthorized", { status: 403 });
+    if (!storeByUserId) {
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
-    // Update variant with all fields
+    await prismadb.variantOptionValue.deleteMany({
+      where: {
+        variantId: params.variantId,
+      }
+    });
+
     const variant = await prismadb.variant.update({
       where: {
         id: params.variantId
       },
       data: {
         name,
-        productId,
+        price,
         colorId: colorId || null,
         sizeId: sizeId || null,
-        price: price || 0,
         sku: sku || null,
         compareAtPrice: compareAtPrice || null,
         costPrice: costPrice || null,
         allowBackorder: allowBackorder || false,
         lowStockAlert: lowStockAlert || null,
-        stockItems: stockCount ? {
-          upsert: {
-            where: {
-              variantId_storeId: {
-                variantId: params.variantId,
-                storeId: params.storeId,
-              }
-            },
-            create: {
-              count: stockCount,
-              storeId: params.storeId,
-            },
-            update: {
-              count: stockCount,
-            }
+        optionValues: {
+          createMany: {
+            data: optionValues.map((ov: { optionValueId: string }) => ({
+              optionValueId: ov.optionValueId,
+            }))
           }
-        } : undefined
+        }
       },
       include: {
         stockItems: true,
         color: true,
         size: true,
+        optionValues: {
+          include: {
+            optionValue: {
+              include: {
+                optionType: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -132,43 +154,39 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { variantId: string, storeId: string } }
+  { params }: { params: { storeId: string, variantId: string } }
 ) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const session = await getAdminSession();
+
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
-    const session = await verifyAuth(token);
-    
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!params.variantId) {
+      return new NextResponse("Variant ID is required", { status: 400 });
     }
 
-    // Verify store ownership
-    const storeByUser = await prismadb.store.findFirst({
+    const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       }
     });
 
-    if (!storeByUser) {
-      return new NextResponse("Unauthorized", { status: 403 });
+    if (!storeByUserId) {
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
     const variant = await prismadb.variant.delete({
       where: {
-        id: params.variantId,
+        id: params.variantId
       }
     });
-
+  
     return NextResponse.json(variant);
   } catch (error) {
     console.log('[VARIANT_DELETE]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-} 
+}

@@ -1,22 +1,28 @@
 import { NextResponse } from 'next/server';
-import { getSession, isAdmin } from "@/lib/auth";
+import { getAdminSession } from "@/lib/auth";
 import prismadb from "@/lib/prismadb";
 
 export async function POST(
   req: Request,
 ) {
   try {
-    const session = await getSession();
+    const session = await getAdminSession();
 
-    if (!session || !isAdmin(session)) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!session) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access. Admin authentication required."
+      }, { status: 401 });
     }
 
     const body = await req.json();
     const { name } = body;
     
     if (!name) {
-      return new NextResponse("Name is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Store name is required"
+      }, { status: 400 });
     }
 
     // Generate a default domain based on store name
@@ -35,10 +41,16 @@ export async function POST(
       }
     });
   
-    return NextResponse.json(store);
+    return NextResponse.json({
+      success: true,
+      data: store
+    });
   } catch (error) {
-    console.log('[STORES_POST]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[STORES_POST]', error);
+    return NextResponse.json({
+      success: false,
+      message: "Failed to create store"
+    }, { status: 500 });
   }
 }
 
@@ -46,10 +58,13 @@ export async function GET(
   req: Request,
 ) {
   try {
-    const session = await getSession();
+    const session = await getAdminSession();
 
-    if (!session || !isAdmin(session)) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!session) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access. Admin authentication required."
+      }, { status: 401 });
     }
 
     const stores = await prismadb.store.findMany({
@@ -58,9 +73,15 @@ export async function GET(
       }
     });
   
-    return NextResponse.json(stores);
+    return NextResponse.json({
+      success: true,
+      data: stores
+    });
   } catch (error) {
-    console.log('[STORES_GET]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[STORES_GET]', error);
+    return NextResponse.json({
+      success: false,
+      message: "Failed to fetch stores"
+    }, { status: 500 });
   }
 }

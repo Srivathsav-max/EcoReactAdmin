@@ -1,163 +1,324 @@
 import { NextResponse } from "next/server";
-import { cookies } from 'next/headers';
-import { verifyAuth } from '@/lib/auth';
 import prismadb from "@/lib/prismadb";
+import { deleteFile } from "@/lib/appwrite-config";
+import { getAdminSession } from "@/lib/auth";
+import type { Image, Size, Color } from "@prisma/client";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { productId: string, storeId: string } }
+  _req: Request,
+  { params }: { params: { storeId: string; productId: string } }
 ) {
   try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access. Admin authentication required."
+      }, { status: 401 });
+    }
+
     if (!params.productId) {
-      return new NextResponse("Product id is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Product ID is required"
+      }, { status: 400 });
+    }
+
+    const storeByUserId = await prismadb.store.findFirst({
+      where: {
+        id: params.storeId,
+        userId: session.userId,
+      }
+    });
+
+    if (!storeByUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access to this store"
+      }, { status: 403 });
     }
 
     const product = await prismadb.product.findUnique({
       where: {
-        id: params.productId,
+        id: params.productId
       },
       include: {
         images: true,
+        brand: true,
+        variants: {
+          include: {
+            images: true,
+            optionValues: {
+              include: {
+                optionValue: {
+                  include: {
+                    optionType: true
+                  }
+                }
+              }
+            },
+            stockItems: true,
+            size: true,
+            color: true,
+          }
+        },
         taxons: true,
-      },
+        optionTypes: {
+          include: {
+            optionValues: true
+          }
+        }
+      }
     });
 
-    // Convert Decimal to number before sending response
+    if (!product) {
+      return NextResponse.json({
+        success: false,
+        message: "Product not found"
+      }, { status: 404 });
+    }
+
     return NextResponse.json({
-      ...product,
-      price: product?.price ? parseFloat(product.price.toString()) : 0
+      success: true,
+      data: product
     });
   } catch (error) {
-    console.log('[PRODUCT_GET]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[PRODUCT_GET]', error);
+    return NextResponse.json({
+      success: false,
+      message: "Failed to fetch product"
+    }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: { productId: string, storeId: string } }
-) {
-  try {
-    const token = cookies().get('token')?.value;
-    if (!token) return new NextResponse("Unauthorized", { status: 403 });
-    
-    const session = await verifyAuth(token);
-    if (!session?.user) return new NextResponse("Unauthorized", { status: 403 });
-
-    if (!params.productId) {
-      return new NextResponse("Product id is required", { status: 400 });
-    }
-
-    const storeByUserId = await prismadb.store.findFirst({
-      where: {
-        id: params.storeId,
-        userId: session.user.id,
-      }
-    });
-
-    if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 403 });
-    }
-
-    const product = await prismadb.product.delete({
-      where: {
-        id: params.productId
-      },
-    });
-  
-    return NextResponse.json(product);
-  } catch (error) {
-    console.log('[PRODUCT_DELETE]', error);
-    return new NextResponse("Internal error", { status: 500 });
-  }
-};
-
-
 export async function PATCH(
   req: Request,
-  { params }: { params: { productId: string, storeId: string } }
+  { params }: { params: { storeId: string; productId: string } }
 ) {
   try {
-    const token = cookies().get('token')?.value;
-    if (!token) return new NextResponse("Unauthorized", { status: 403 });
-    
-    const session = await verifyAuth(token);
-    if (!session?.user) return new NextResponse("Unauthorized", { status: 403 });
+    const session = await getAdminSession();
 
-    const body = await req.json();
-    const { name, price, taxonIds, images, colorId, sizeId, isFeatured, isArchived } = body;
-
-    if (!params.productId) {
-      return new NextResponse("Product id is required", { status: 400 });
-    }
-
-    if (!name) {
-      return new NextResponse("Name is required", { status: 400 });
-    }
-
-    if (!images || !images.length) {
-      return new NextResponse("Images are required", { status: 400 });
-    }
-
-    if (!price) {
-      return new NextResponse("Price is required", { status: 400 });
-    }
-
-    if (!colorId) {
-      return new NextResponse("Color id is required", { status: 400 });
-    }
-
-    if (!sizeId) {
-      return new NextResponse("Size id is required", { status: 400 });
+    if (!session) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access. Admin authentication required."
+      }, { status: 401 });
     }
 
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       }
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 403 });
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access to this store"
+      }, { status: 403 });
     }
 
-    // Delete existing images first
-    await prismadb.image.deleteMany({
-      where: {
-        productId: params.productId
-      }
+    const body = await req.json();
+
+    const { 
+      name,
+      description,
+      price,
+      images,
+      brandId,
+      isVisible,
+      status,
+      hasVariants,
+      sku,
+      barcode,
+      tags = [],
+      taxons = [],
+      taxRate,
+      weight,
+      height,
+      width,
+      depth,
+      minimumQuantity,
+      maximumQuantity,
+      optionTypes = [],
+    } = body;
+
+    if (!params.productId) {
+      return NextResponse.json({
+        success: false,
+        message: "Product ID is required"
+      }, { status: 400 });
+    }
+
+    const currentProduct = await prismadb.product.findUnique({
+      where: { id: params.productId },
+      include: { images: true }
     });
 
-    // Update product with new images
-    const product = await prismadb.product.update({
+    if (!currentProduct) {
+      return NextResponse.json({
+        success: false,
+        message: "Product not found"
+      }, { status: 404 });
+    }
+
+    // Delete removed images from Appwrite
+    const newImageFileIds = new Set(images.map((img: { fileId: string }) => img.fileId));
+    for (const oldImage of currentProduct.images) {
+      if (!newImageFileIds.has(oldImage.fileId)) {
+        try {
+          await deleteFile(oldImage.fileId);
+        } catch (error) {
+          console.error(`Failed to delete image ${oldImage.fileId}:`, error);
+        }
+      }
+    }
+
+    // Generate slug from name if name is being updated
+    const slug = name ? name.toLowerCase().replace(/[^a-z0-9]/g, '-') : undefined;
+
+    const updatedProduct = await prismadb.product.update({
       where: {
         id: params.productId
       },
       data: {
         name,
-        price,
-        colorId,
-        sizeId,
-        images: {
-          createMany: {
-            data: images.map((image: { url: string, fileId: string }) => ({
-              url: image.url,
-              fileId: image.fileId
-            }))
-          }
-        },
-        isFeatured,
-        isArchived,
-        taxons: {
-          set: taxonIds?.map((id: string) => ({ id })) || []
-        }
-      },
+        slug,
+        description,
+        price: price ? parseFloat(price.toString()) : undefined,
+        brandId,
+        status,
+        isVisible,
+        hasVariants,
+        sku,
+        barcode,
+        tags,
+        taxRate: taxRate ? parseFloat(taxRate.toString()) : undefined,
+        weight: weight ? parseFloat(weight.toString()) : undefined,
+        height: height ? parseFloat(height.toString()) : undefined,
+        width: width ? parseFloat(width.toString()) : undefined,
+        depth: depth ? parseFloat(depth.toString()) : undefined,
+        minimumQuantity,
+        maximumQuantity,
+        ...(images && {
+          images: {
+            deleteMany: {},
+            createMany: {
+              data: images.map((image: { url: string; fileId: string }) => ({
+                url: image.url,
+                fileId: image.fileId,
+              })),
+            },
+          },
+        }),
+        ...(optionTypes && {
+          optionTypes: {
+            deleteMany: {},
+            createMany: {
+              data: optionTypes.map((ot: any) => ({
+                name: ot.name,
+                presentation: ot.presentation,
+                position: ot.position,
+                storeId: params.storeId,
+              })),
+            },
+          },
+        }),
+        ...(taxons && {
+          taxons: {
+            set: taxons.map((taxonId: string) => ({ id: taxonId })),
+          },
+        }),
+      }
     });
 
-    return NextResponse.json(product);
+    return NextResponse.json({
+      success: true,
+      data: updatedProduct
+    });
   } catch (error) {
-    console.log('[PRODUCT_PATCH]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[PRODUCT_PATCH]', error);
+    return NextResponse.json({
+      success: false,
+      message: "Failed to update product"
+    }, { status: 500 });
   }
-};
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: { storeId: string; productId: string } }
+) {
+  try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access. Admin authentication required."
+      }, { status: 401 });
+    }
+
+    if (!params.productId) {
+      return NextResponse.json({
+        success: false,
+        message: "Product ID is required"
+      }, { status: 400 });
+    }
+
+    const storeByUserId = await prismadb.store.findFirst({
+      where: {
+        id: params.storeId,
+        userId: session.userId,
+      }
+    });
+
+    if (!storeByUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access to this store"
+      }, { status: 403 });
+    }
+
+    const product = await prismadb.product.findUnique({
+      where: { id: params.productId },
+      include: { images: true }
+    });
+
+    if (!product) {
+      return NextResponse.json({
+        success: false,
+        message: "Product not found"
+      }, { status: 404 });
+    }
+
+    // Delete images from Appwrite
+    for (const image of product.images) {
+      try {
+        await deleteFile(image.fileId);
+      } catch (error) {
+        console.error(`Failed to delete image ${image.fileId}:`, error);
+      }
+    }
+
+    // Delete the product
+    await prismadb.product.delete({
+      where: {
+        id: params.productId
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Product deleted successfully"
+    });
+  } catch (error) {
+    console.error('[PRODUCT_DELETE]', error);
+    return NextResponse.json({
+      success: false,
+      message: "Failed to delete product"
+    }, { status: 500 });
+  }
+}

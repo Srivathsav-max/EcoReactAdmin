@@ -344,7 +344,7 @@ const findTaxonomyByTaxonId = (taxonomies: any[], id: string): Taxonomy | null =
 const memoizedFindTaxonById = (() => {
   const cache = new Map<string, Taxon | null>();
   return (taxonomies: any[], id: string): Taxon | null => {
-    if (cache.has(id)) return cache.get(id);
+    if (cache.has(id)) return cache.get(id) ?? null;
     const result = findTaxonById(taxonomies, id);
     cache.set(id, result);
     return result;

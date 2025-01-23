@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
-import { verifyAuth } from "@/lib/auth";
+import { getAdminSession } from "@/lib/auth";
 import { cookies } from "next/headers";
 
 export async function POST(
@@ -8,17 +8,10 @@ export async function POST(
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get('token')?.value;
+    const session = await getAdminSession();
     
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    const session = await verifyAuth(token);
-    
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
     const body = await req.json();
@@ -49,12 +42,12 @@ export async function POST(
     const storeByUser = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       }
     });
 
     if (!storeByUser) {
-      return new NextResponse("Unauthorized", { status: 403 });
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
     const variant = await prismadb.variant.create({
@@ -95,6 +88,12 @@ export async function GET(
   { params }: { params: { storeId: string } }
 ) {
   try {
+    const session = await getAdminSession();
+    
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const productId = searchParams.get('productId');
     const colorId = searchParams.get('colorId');
@@ -126,4 +125,4 @@ export async function GET(
     console.log('[VARIANTS_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-} 
+}

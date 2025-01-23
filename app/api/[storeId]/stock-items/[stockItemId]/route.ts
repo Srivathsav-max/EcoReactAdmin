@@ -1,32 +1,52 @@
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
-import { verifyAuth } from "@/lib/auth";
-import { cookies } from "next/headers";
+import { getAdminSession } from "@/lib/auth";
 
 export async function GET(
   req: Request,
-  { params }: { params: { stockItemId: string } }
+  { params }: { params: { storeId: string, stockItemId: string } }
 ) {
   try {
-    if (!params.stockItemId) {
-      return new NextResponse("Stock item id is required", { status: 400 });
+    const session = await getAdminSession();
+
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
-    const stockItem = await prismadb.stockItem.findUnique({
+    if (!params.stockItemId) {
+      return new NextResponse("Stock Item ID is required", { status: 400 });
+    }
+
+    const storeByUserId = await prismadb.store.findFirst({
       where: {
-        id: params.stockItemId
+        id: params.storeId,
+        userId: session.userId,
+      }
+    });
+
+    if (!storeByUserId) {
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
+    }
+
+    const stockItem = await prismadb.stockItem.findFirst({
+      where: {
+        id: params.stockItemId,
+        storeId: params.storeId,
       },
       include: {
         variant: {
           include: {
-            product: true,
-            color: true,
-            size: true
+            product: true
+          }
+        },
+        stockMovements: {
+          orderBy: {
+            createdAt: 'desc'
           }
         }
       }
     });
-
+  
     return NextResponse.json(stockItem);
   } catch (error) {
     console.log('[STOCK_ITEM_GET]', error);
@@ -39,38 +59,33 @@ export async function PATCH(
   { params }: { params: { storeId: string, stockItemId: string } }
 ) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const session = await getAdminSession();
 
-    const session = await verifyAuth(token);
-    
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
     const body = await req.json();
     
-    const { 
-      count,
-      stockStatus,
-      reserved,
-      backorderedQty
-    } = body;
+    const { count } = body;
 
-    // Verify store ownership
-    const storeByUser = await prismadb.store.findFirst({
+    if (typeof count !== 'number') {
+      return new NextResponse("Count must be a number", { status: 400 });
+    }
+
+    if (!params.stockItemId) {
+      return new NextResponse("Stock Item ID is required", { status: 400 });
+    }
+
+    const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       }
     });
 
-    if (!storeByUser) {
-      return new NextResponse("Unauthorized", { status: 403 });
+    if (!storeByUserId) {
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
     const stockItem = await prismadb.stockItem.update({
@@ -78,20 +93,10 @@ export async function PATCH(
         id: params.stockItemId
       },
       data: {
-        count,
-        stockStatus,
-        reserved,
-        backorderedQty
-      },
-      include: {
-        variant: {
-          include: {
-            product: true
-          }
-        }
+        count
       }
     });
-
+  
     return NextResponse.json(stockItem);
   } catch (error) {
     console.log('[STOCK_ITEM_PATCH]', error);
@@ -101,32 +106,28 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { stockItemId: string, storeId: string } }
+  { params }: { params: { storeId: string, stockItemId: string } }
 ) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const session = await getAdminSession();
+
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
-    const session = await verifyAuth(token);
-    
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!params.stockItemId) {
+      return new NextResponse("Stock Item ID is required", { status: 400 });
     }
 
-    // Verify store ownership
-    const storeByUser = await prismadb.store.findFirst({
+    const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       }
     });
 
-    if (!storeByUser) {
-      return new NextResponse("Unauthorized", { status: 403 });
+    if (!storeByUserId) {
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
     const stockItem = await prismadb.stockItem.delete({
@@ -134,10 +135,10 @@ export async function DELETE(
         id: params.stockItemId
       }
     });
-
+  
     return NextResponse.json(stockItem);
   } catch (error) {
     console.log('[STOCK_ITEM_DELETE]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-} 
+}

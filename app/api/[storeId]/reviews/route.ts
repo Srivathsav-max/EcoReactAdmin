@@ -1,24 +1,33 @@
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
-import { verifyAuth } from "@/lib/auth";
-import { cookies } from "next/headers";
+import { getAdminSession } from "@/lib/auth";
 
 export async function POST(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const session = await getAdminSession();
+
+    if (!session) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access. Admin authentication required."
+      }, { status: 401 });
     }
 
-    const session = await verifyAuth(token);
-    
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const storeByUserId = await prismadb.store.findFirst({
+      where: {
+        id: params.storeId,
+        userId: session.userId,
+      }
+    });
+
+    if (!storeByUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access to this store"
+      }, { status: 403 });
     }
 
     const body = await req.json();
@@ -33,31 +42,31 @@ export async function POST(
     } = body;
 
     if (!productId) {
-      return new NextResponse("Product ID is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Product ID is required"
+      }, { status: 400 });
     }
 
     if (!customerId) {
-      return new NextResponse("Customer ID is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Customer ID is required"
+      }, { status: 400 });
     }
 
     if (!rating) {
-      return new NextResponse("Rating is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Rating is required"
+      }, { status: 400 });
     }
 
     if (!content) {
-      return new NextResponse("Content is required", { status: 400 });
-    }
-
-    // Verify store ownership
-    const storeByUser = await prismadb.store.findFirst({
-      where: {
-        id: params.storeId,
-        userId: session.user.id,
-      }
-    });
-
-    if (!storeByUser) {
-      return new NextResponse("Unauthorized", { status: 403 });
+      return NextResponse.json({
+        success: false,
+        message: "Content is required"
+      }, { status: 400 });
     }
 
     const review = await prismadb.productReview.create({
@@ -75,10 +84,16 @@ export async function POST(
       }
     });
 
-    return NextResponse.json(review);
+    return NextResponse.json({
+      success: true,
+      data: review
+    });
   } catch (error) {
-    console.log('[REVIEWS_POST]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[REVIEWS_POST]', error);
+    return NextResponse.json({
+      success: false,
+      message: "Failed to create review"
+    }, { status: 500 });
   }
 }
 
@@ -87,6 +102,29 @@ export async function GET(
   { params }: { params: { storeId: string } }
 ) {
   try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access. Admin authentication required."
+      }, { status: 401 });
+    }
+
+    const storeByUserId = await prismadb.store.findFirst({
+      where: {
+        id: params.storeId,
+        userId: session.userId,
+      }
+    });
+
+    if (!storeByUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized access to this store"
+      }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const productId = searchParams.get('productId');
     const status = searchParams.get('status');
@@ -110,9 +148,15 @@ export async function GET(
       }
     });
 
-    return NextResponse.json(reviews);
+    return NextResponse.json({
+      success: true,
+      data: reviews
+    });
   } catch (error) {
-    console.log('[REVIEWS_GET]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[REVIEWS_GET]', error);
+    return NextResponse.json({
+      success: false,
+      message: "Failed to fetch reviews"
+    }, { status: 500 });
   }
-} 
+}

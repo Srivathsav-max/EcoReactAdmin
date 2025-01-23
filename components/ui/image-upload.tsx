@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import Image from "next/image";
-import { ImagePlus, Trash } from "lucide-react";
-import { uploadFile, getFilePreviewUrl, deleteFile } from "@/lib/appwrite-config";
+import { FileRejection, useDropzone } from "react-dropzone";
+import { ImagePlus, X } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface ImageUploadProps {
   disabled?: boolean;
@@ -14,110 +14,176 @@ interface ImageUploadProps {
   value: string[];
 }
 
-const ImageUpload = ({
+interface UploadResponse {
+  success: boolean;
+  url?: string;
+  message?: string;
+}
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+const ImageUpload: React.FC<ImageUploadProps> = ({
   disabled,
   onChange,
   onRemove,
   value
-}: ImageUploadProps) => {
-  const [isMounted, setIsMounted] = useState(false);
+}) => {
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (disabled || isUploading) return;
 
-  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
+
     try {
-      if (!e.target.files || !e.target.files[0]) return;
-
       setIsUploading(true);
-      const file = e.target.files[0];
-      
-      // Upload file and get file ID
-      const fileId = await uploadFile(file);
-      
-      // Get preview URL
-      const fileUrl = await getFilePreviewUrl(fileId);
+      setUploadProgress(0);
 
-      onChange(fileUrl);
-      toast.success("Image uploaded successfully");
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/upload');
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const progress = (event.loaded / event.total) * 100;
+          setUploadProgress(Math.round(progress));
+        }
+      };
+
+      await new Promise<void>((resolve, reject) => {
+        xhr.onload = () => {
+          try {
+            const response = JSON.parse(xhr.responseText) as UploadResponse;
+            if (xhr.status === 401) {
+              reject(new Error('Please sign in as admin to upload images'));
+            } else if (!response.success) {
+              reject(new Error(response.message || 'Upload failed'));
+            } else if (response.url) {
+              onChange(response.url);
+              toast.success('Image uploaded successfully');
+              resolve();
+            } else {
+              reject(new Error('Invalid response from server'));
+            }
+          } catch (error) {
+            reject(new Error('Invalid response from server'));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error('Network error occurred'));
+        };
+
+        xhr.send(formData);
+      });
+
     } catch (error) {
       console.error('Error uploading image:', error);
-      toast.error("Failed to upload image. Please try again.");
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
-  };
+  }, [disabled, isUploading, onChange]);
 
-  const handleRemove = async (url: string) => {
-    try {
-      // Extract fileId from URL
-      const urlParts = url.split('/');
-      const fileId = urlParts[urlParts.length - 1];
-      
-      await deleteFile(fileId);
-      onRemove(url);
-      toast.success("Image removed successfully");
-    } catch (error) {
-      console.error('Error removing image:', error);
-      toast.error("Failed to remove image. Please try again.");
+  const handleDropRejected = useCallback((fileRejections: FileRejection[]) => {
+    const rejection = fileRejections[0];
+    if (!rejection) return;
+
+    const error = rejection.errors[0];
+    switch (error?.code) {
+      case "file-too-large":
+        toast.error(`File is too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+        break;
+      case "file-invalid-type":
+        toast.error("Invalid file type. Please upload an image");
+        break;
+      default:
+        toast.error(error?.message || "Error uploading file");
     }
-  };
+  }, []);
 
-  if (!isMounted) {
-    return <div />;
-  }
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    onDropRejected: handleDropRejected,
+    accept: {
+      'image/*': ['.png', '.gif', '.jpeg', '.jpg', '.webp']
+    },
+    multiple: false,
+    disabled: disabled || isUploading,
+    maxSize: MAX_FILE_SIZE,
+  });
 
   return (
-    <div>
-      <div className="mb-4 flex items-center gap-4">
-        {value.map((url) => (
-          <div key={url} className="relative w-[200px] h-[200px] rounded-lg overflow-hidden">
-            <div className="z-10 absolute top-2 right-2">
-              <Button
-                type="button"
-                onClick={() => handleRemove(url)}
-                variant="destructive"
-                size="sm"
-                disabled={disabled || isUploading}
-              >
-                <Trash className="h-4 w-4" />
-              </Button>
-            </div>
-            <Image
-              fill
-              className="object-cover"
-              alt="Image"
-              src={url}
-            />
+    <div className="space-y-4 w-full">
+      <div 
+        {...getRootProps()} 
+        className={cn(
+          "border-2 border-dashed rounded-lg p-6 transition-all",
+          isDragActive 
+            ? "border-primary bg-secondary/10" 
+            : "border-gray-200 hover:border-primary",
+          (disabled || isUploading) 
+            ? "opacity-50 cursor-not-allowed" 
+            : "cursor-pointer hover:border-primary"
+        )}
+      >
+        <input {...getInputProps()} />
+        <div className="flex flex-col items-center justify-center gap-2 text-center">
+          <ImagePlus className={cn(
+            "h-10 w-10 transition-colors",
+            isDragActive ? "text-primary" : "text-gray-400"
+          )} />
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p className="text-base font-medium">
+              {isDragActive ? "Drop the image here" : "Drop your image here"}
+            </p>
+            <p>or click to browse</p>
           </div>
-        ))}
+          {isUploading && (
+            <div className="w-full max-w-xs mt-4">
+              <div className="bg-secondary rounded-full h-1.5">
+                <div 
+                  className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {uploadProgress}% uploaded
+              </p>
+            </div>
+          )}
+        </div>
       </div>
-      <div>
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          id="image-upload"
-          onChange={onUpload}
-          disabled={disabled || isUploading}
-        />
-        <label 
-          htmlFor="image-upload"
-          className="cursor-pointer"
-        >
-          <Button 
-            type="button" 
-            disabled={disabled || isUploading} 
-            variant="secondary"
-            className="w-full"
-          >
-            <ImagePlus className="h-4 w-4 mr-2" />
-            {isUploading ? "Uploading..." : "Upload an Image"}
-          </Button>
-        </label>
-      </div>
+
+      {value.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+          {value.map((url) => (
+            <div 
+              key={url} 
+              className="group relative aspect-square rounded-lg overflow-hidden bg-secondary/20"
+            >
+              <Image
+                fill
+                src={url}
+                alt="Upload preview"
+                className="object-cover"
+              />
+              <button
+                onClick={() => onRemove(url)}
+                className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                type="button"
+              >
+                <X className="h-4 w-4 text-white" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

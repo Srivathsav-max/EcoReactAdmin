@@ -1,15 +1,31 @@
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
-import { verifyAuth } from "@/lib/auth";
-import { cookies } from "next/headers";
+import { getAdminSession } from "@/lib/auth";
 
 export async function GET(
   req: Request,
-  { params }: { params: { reviewId: string, storeId: string } }
+  { params }: { params: { storeId: string, reviewId: string } }
 ) {
   try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
+    }
+
     if (!params.reviewId) {
       return new NextResponse("Review ID is required", { status: 400 });
+    }
+
+    const storeByUserId = await prismadb.store.findFirst({
+      where: {
+        id: params.storeId,
+        userId: session.userId,
+      }
+    });
+
+    if (!storeByUserId) {
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
     const review = await prismadb.productReview.findUnique({
@@ -34,46 +50,32 @@ export async function PATCH(
   { params }: { params: { storeId: string, reviewId: string } }
 ) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const session = await getAdminSession();
 
-    const session = await verifyAuth(token);
-    
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
     const body = await req.json();
-    
-    const { 
-      rating,
-      title,
-      content,
-      status
-    } = body;
+    const { status } = body;
 
-    if (!rating) {
-      return new NextResponse("Rating is required", { status: 400 });
+    if (!status) {
+      return new NextResponse("Status is required", { status: 400 });
     }
 
-    if (!content) {
-      return new NextResponse("Content is required", { status: 400 });
+    if (!params.reviewId) {
+      return new NextResponse("Review ID is required", { status: 400 });
     }
 
-    // Verify store ownership
-    const storeByUser = await prismadb.store.findFirst({
+    const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       }
     });
 
-    if (!storeByUser) {
-      return new NextResponse("Unauthorized", { status: 403 });
+    if (!storeByUserId) {
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
     const review = await prismadb.productReview.update({
@@ -81,14 +83,7 @@ export async function PATCH(
         id: params.reviewId
       },
       data: {
-        rating,
-        title,
-        content,
         status
-      },
-      include: {
-        product: true,
-        customer: true
       }
     });
 
@@ -101,32 +96,28 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { reviewId: string, storeId: string } }
+  { params }: { params: { storeId: string, reviewId: string } }
 ) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const session = await getAdminSession();
+
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
-    const session = await verifyAuth(token);
-    
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!params.reviewId) {
+      return new NextResponse("Review ID is required", { status: 400 });
     }
 
-    // Verify store ownership
-    const storeByUser = await prismadb.store.findFirst({
+    const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       }
     });
 
-    if (!storeByUser) {
-      return new NextResponse("Unauthorized", { status: 403 });
+    if (!storeByUserId) {
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
     const review = await prismadb.productReview.delete({
@@ -140,4 +131,4 @@ export async function DELETE(
     console.log('[REVIEW_DELETE]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-} 
+}

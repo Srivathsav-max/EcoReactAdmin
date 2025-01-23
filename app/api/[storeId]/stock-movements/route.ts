@@ -1,126 +1,77 @@
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
-import { verifyAuth, isAdmin } from "@/lib/auth";
-import { cookies } from "next/headers";
-import { StockMovementType } from "@/app/(dashboard)/[storeId]/(routes)/stock-movements/components/columns";
-
-const ITEMS_PER_PAGE = 100;
+import { getAdminSession } from "@/lib/auth";
 
 export async function POST(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
+    const session = await getAdminSession();
     
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    const session = await verifyAuth();
-    
-    if (!session || !isAdmin(session)) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
     const body = await req.json();
     
     const { 
-      variantId,
-      stockItemId,
-      quantity,
       type,
+      quantity,
+      stockItemId,
       reason
     } = body;
 
-    if (!variantId) {
-      return new NextResponse("Variant ID is required", { status: 400 });
+    if (!type) {
+      return new NextResponse("Movement type is required", { status: 400 });
+    }
+
+    if (typeof quantity !== 'number') {
+      return new NextResponse("Quantity is required and must be a number", { status: 400 });
     }
 
     if (!stockItemId) {
-      return new NextResponse("Stock Item ID is required", { status: 400 });
+      return new NextResponse("Stock item ID is required", { status: 400 });
     }
 
-    if (!quantity) {
-      return new NextResponse("Quantity is required", { status: 400 });
+    if (!params.storeId) {
+      return new NextResponse("Store id is required", { status: 400 });
     }
 
-    if (!type || !["increment", "decrement", "adjustment"].includes(type)) {
-      return new NextResponse("Valid movement type is required", { status: 400 });
-    }
-
-    // Verify store ownership
-    const storeByUser = await prismadb.store.findFirst({
+    const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
         userId: session.userId,
-      },
-      select: { id: true }
+      }
     });
 
-    if (!storeByUser) {
-      return new NextResponse("Unauthorized", { status: 403 });
+    if (!storeByUserId) {
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
-    // Create stock movement with minimal includes
+    const stockItem = await prismadb.stockItem.findUnique({
+      where: {
+        id: stockItemId,
+      },
+      include: {
+        variant: true
+      }
+    });
+
+    if (!stockItem) {
+      return new NextResponse("Stock item not found", { status: 404 });
+    }
+
     const stockMovement = await prismadb.stockMovement.create({
       data: {
-        variantId,
-        stockItemId,
+        type,
         quantity,
-        type: type as StockMovementType,
-        reason
-      },
-      select: {
-        id: true,
-        quantity: true,
-        type: true,
-        reason: true,
-        createdAt: true,
-        variant: {
-          select: {
-            name: true,
-            product: {
-              select: {
-                name: true
-              }
-            }
-          }
-        }
+        stockItemId,
+        variantId: stockItem.variantId,
+        reason: reason || null,
       }
     });
-
-    // Update stock item quantity based on movement type
-    const stockItem = await prismadb.stockItem.findUnique({
-      where: { id: stockItemId },
-      select: {
-        id: true,
-        count: true
-      }
-    });
-
-    if (stockItem) {
-      let newCount = stockItem.count;
-      if (type === 'increment') {
-        newCount += quantity;
-      } else if (type === 'decrement') {
-        newCount = Math.max(0, newCount - quantity);
-      } else if (type === 'adjustment') {
-        newCount = quantity;
-      }
-
-      await prismadb.stockItem.update({
-        where: { id: stockItemId },
-        data: {
-          count: newCount,
-          stockStatus: newCount === 0 ? 'out_of_stock' : 
-                      newCount <= 5 ? 'low_stock' : 
-                      'in_stock'
-        }
-      });
-    }
-
+  
     return NextResponse.json(stockMovement);
   } catch (error) {
     console.log('[STOCK_MOVEMENTS_POST]', error);
@@ -133,50 +84,32 @@ export async function GET(
   { params }: { params: { storeId: string } }
 ) {
   try {
+    const session = await getAdminSession();
+    
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
+    }
+
+    if (!params.storeId) {
+      return new NextResponse("Store id is required", { status: 400 });
+    }
+
     const { searchParams } = new URL(req.url);
-    const variantId = searchParams.get('variantId');
     const stockItemId = searchParams.get('stockItemId');
-    const type = searchParams.get('type') as StockMovementType | null;
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || String(ITEMS_PER_PAGE));
+    const type = searchParams.get('type');
 
     const stockMovements = await prismadb.stockMovement.findMany({
-      take: limit,
-      skip: (page - 1) * limit,
       where: {
-        variant: {
-          product: {
-            storeId: params.storeId
-          }
+        stockItem: {
+          storeId: params.storeId
         },
-        ...(variantId && { variantId }),
         ...(stockItemId && { stockItemId }),
-        ...(type && { type })
+        ...(type && { type }),
       },
-      select: {
-        id: true,
-        quantity: true,
-        type: true,
-        reason: true,
-        createdAt: true,
-        variant: {
-          select: {
-            name: true,
-            product: {
-              select: {
-                name: true
-              }
-            },
-            color: {
-              select: {
-                name: true
-              }
-            },
-            size: {
-              select: {
-                name: true
-              }
-            }
+      include: {
+        stockItem: {
+          include: {
+            variant: true
           }
         }
       },
@@ -184,7 +117,7 @@ export async function GET(
         createdAt: 'desc'
       }
     });
-
+  
     return NextResponse.json(stockMovements);
   } catch (error) {
     console.log('[STOCK_MOVEMENTS_GET]', error);

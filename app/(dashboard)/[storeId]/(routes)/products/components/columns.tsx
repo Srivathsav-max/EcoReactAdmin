@@ -2,106 +2,157 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { CellAction } from "./cell-action";
-import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { ArrowUpDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export type ProductColumn = {
   id: string;
   name: string;
   price: string;
-  priceFormatted: string;
-  currencySymbol: string;
-  rawPrice: number;
-  size: string;
-  color: string;
-  isFeatured: boolean;
-  isArchived: boolean;
   category: string;
-  slug: string;
   sku: string;
-  description: string;
-  metaTitle: string;
-  metaDescription: string;
-  status: string;
-  stockCount: number;
+  stock: number;
   createdAt: string;
-  availableOn: string;
-  discontinueOn: string;
+  images: { url: string }[];
+  isArchived: boolean;
 };
 
 export const columns: ColumnDef<ProductColumn>[] = [
   {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected()}
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "images",
+    header: "Image",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        {row.original.images?.[0]?.url ? (
+          <div className="relative h-12 w-12">
+            <Image
+              src={row.original.images[0].url}
+              alt={row.original.name}
+              fill
+              className="object-cover rounded-md"
+            />
+          </div>
+        ) : (
+          <div className="h-12 w-12 bg-gray-100 rounded-md flex items-center justify-center">
+            <span className="text-gray-400 text-xs">No image</span>
+          </div>
+        )}
+      </div>
+    ),
+  },
+  {
     accessorKey: "name",
-    header: "Name",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Name
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
   },
   {
     accessorKey: "sku",
-    header: "SKU",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          SKU
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
   },
   {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <div className="flex items-center">
-        <Badge variant={
-          row.original.status === 'active' ? 'success' :
-          row.original.status === 'draft' ? 'warning' : 'secondary'
-        }>
-          {row.original.status}
-        </Badge>
-      </div>
-    )
-  },
-  {
-    accessorKey: "priceFormatted",
-    header: "Price",
-    cell: ({ row }) => (
-      <div className="flex items-center">
-        {row.original.currencySymbol}{row.original.priceFormatted}
-      </div>
-    )
-  },
-  {
-    accessorKey: "stockCount",
-    header: "Stock",
-    cell: ({ row }) => (
-      <div className="flex items-center">
-        <Badge variant={
-          row.original.stockCount > 10 ? 'success' :
-          row.original.stockCount > 0 ? 'warning' : 'destructive'
-        }>
-          {row.original.stockCount}
-        </Badge>
-      </div>
-    )
+    accessorKey: "price",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Price
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
   },
   {
     accessorKey: "category",
-    header: "Categories",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Category
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
   },
   {
-    accessorKey: "size",
-    header: "Size",
+    accessorKey: "stock",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Stock
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
   },
   {
-    accessorKey: "color",
-    header: "Color",
+    accessorKey: "isArchived",
+    header: "Status",
     cell: ({ row }) => (
-      <div className="flex items-center gap-x-2">
-        {row.original.color}
-        <div 
-          className="h-6 w-6 rounded-full border" 
-          style={{ backgroundColor: row.original.color }} 
-        />
+      <div className={`font-medium ${row.original.isArchived ? "text-red-600" : "text-green-600"}`}>
+        {row.original.isArchived ? "Archived" : "Active"}
       </div>
-    )
-  },
-  {
-    accessorKey: "availableOn",
-    header: "Available",
+    ),
   },
   {
     accessorKey: "createdAt",
-    header: "Created",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Date
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
   },
   {
     id: "actions",

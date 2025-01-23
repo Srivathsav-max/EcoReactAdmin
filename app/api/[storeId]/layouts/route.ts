@@ -1,34 +1,28 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyAuth, isAdmin } from '@/lib/auth';
-import prismadb from '@/lib/prismadb';
+import { NextResponse } from "next/server";
+import prismadb from "@/lib/prismadb";
+import { getAdminSession } from "@/lib/auth";
 
 export async function POST(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 403 });
-    }
+    const session = await getAdminSession();
 
-    const session = await verifyAuth();
-    if (!session || !isAdmin(session)) {
-      return new NextResponse("Unauthorized", { status: 403 });
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
     const body = await req.json();
-    const { name, isActive = false } = body;
+    
+    const { name } = body;
 
     if (!name) {
       return new NextResponse("Name is required", { status: 400 });
     }
 
     if (!params.storeId) {
-      return new NextResponse("Store ID is required", { status: 400 });
+      return new NextResponse("Store id is required", { status: 400 });
     }
 
     const storeByUserId = await prismadb.store.findFirst({
@@ -39,32 +33,16 @@ export async function POST(
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
-    // If this layout is being set as active, deactivate all other layouts first
-    if (isActive) {
-      await prismadb.$executeRaw`
-        UPDATE "HomeLayout"
-        SET "isActive" = false
-        WHERE "storeId" = ${params.storeId}
-      `;
-    }
-
-    // Create the new layout
-    const layout = await prismadb.$executeRaw`
-      INSERT INTO "HomeLayout" ("id", "storeId", "name", "isActive", "createdAt", "updatedAt")
-      VALUES (
-        ${crypto.randomUUID()},
-        ${params.storeId},
-        ${name},
-        ${isActive},
-        NOW(),
-        NOW()
-      )
-      RETURNING *
-    `;
-
+    const layout = await prismadb.homeLayout.create({
+      data: {
+        name,
+        storeId: params.storeId,
+      }
+    });
+  
     return NextResponse.json(layout);
   } catch (error) {
     console.log('[LAYOUTS_POST]', error);
@@ -77,16 +55,28 @@ export async function GET(
   { params }: { params: { storeId: string } }
 ) {
   try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
+    }
+
     if (!params.storeId) {
       return new NextResponse("Store id is required", { status: 400 });
     }
 
-    const layouts = await prismadb.$queryRaw<Array<any>>`
-      SELECT * FROM "HomeLayout"
-      WHERE "storeId" = ${params.storeId}
-      ORDER BY "createdAt" DESC
-    `;
-
+    const layouts = await prismadb.homeLayout.findMany({
+      where: {
+        storeId: params.storeId,
+      },
+      include: {
+        components: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+  
     return NextResponse.json(layouts);
   } catch (error) {
     console.log('[LAYOUTS_GET]', error);

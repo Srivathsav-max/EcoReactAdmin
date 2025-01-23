@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProductForm } from "./product-form"
 import ImageUpload from "@/components/ui/image-upload"
 import { useState } from "react"
-import { Product, Image, Color, Size, Taxonomy, Taxon } from "@prisma/client"
+import { Product, Brand, Image, Color, Size, NavigationTaxonomy, Taxon } from "@/types/models"
 import { type Property } from "./properties-manager"
 import { ShippingManager } from "./shipping-manager"
 import { SeoManager } from "./seo-manager"
@@ -14,40 +14,34 @@ import { PropertiesManager } from "./properties-manager"
 interface ProductTabsProps {
   stockItems?: any[];
   properties?: Property[];
-  initialData: {
-    id: string;
-    name: string;
-    description?: string | null;
-    images: Image[];
-    price: number;
-    costPrice?: number | null;
-    compareAtPrice?: number | null;
-    taxRate?: number | null;
-    weight?: number | null;
-    height?: number | null;
-    width?: number | null;
-    depth?: number | null;
-    status: string;
-    taxons: Taxon[];
-    variants?: any[];
+  initialData: Product & {
+    variants: any[];
+    brandId?: string;
+    colorId?: string;
+    sizeId?: string;
+    sku?: string;
+    barcode?: string;
+    tags: string[];
+    taxRate?: number;
+    weight?: number;
+    height?: number;
+    width?: number;
+    depth?: number;
+    minimumQuantity: number;
+    maximumQuantity?: number;
     properties?: Property[];
     shippingCategory?: string | null;
-    slug?: string | null;
     metaTitle?: string | null;
     metaDescription?: string | null;
     metaKeywords?: string | null;
   } | null;
   colors: Color[];
   sizes: Size[];
-  taxonomies: (Taxonomy & {
-    taxons: (Taxon & {
-      children?: Taxon[];
-    })[];
-  })[];
+  taxonomies: NavigationTaxonomy[];
   initialTaxons?: Taxon[];
   storeCurrency: string;
   storeLocale: string;
-  brands?: { id: string; name: string }[];
+  brands?: Brand[];
 }
 
 export const ProductTabs: React.FC<ProductTabsProps> = ({
@@ -58,7 +52,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({
   initialTaxons,
   storeCurrency,
   storeLocale,
-  brands
+  brands = [] // Provide empty array as default
 }) => {
   const [activeTab, setActiveTab] = useState("details")
 

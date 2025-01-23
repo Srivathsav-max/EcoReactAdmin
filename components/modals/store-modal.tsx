@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useStoreModal } from "@/hooks/use-store-modal";
 
 const formSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1, 'Store name is required'),
 });
 
 export const StoreModal = () => {
@@ -39,19 +39,32 @@ export const StoreModal = () => {
       setLoading(true);
       const response = await axios.post('/api/stores', values);
       
+      // Check if the request was successful
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to create store');
+      }
+
+      const store = response.data.data;
+      
       if (isNewStorePage) {
         // If on /new page, do a hard refresh to the new store
-        window.location.href = `/${response.data.id}`;
+        window.location.href = `/${store.id}`;
       } else {
         // If creating from store switcher, use router
         toast.success('Store created successfully');
         router.refresh();
-        router.push(`/${response.data.id}`);
+        router.push(`/${store.id}`);
         storeModal.onClose();
       }
       
-    } catch (error) {
-      toast.error('Something went wrong');
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        toast.error('Please sign in as admin to create a store');
+        // Optionally redirect to sign in page
+        signOut({ callbackUrl: '/signin' });
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to create store');
+      }
     } finally {
       setLoading(false);
     }
@@ -80,9 +93,13 @@ export const StoreModal = () => {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Store Name</FormLabel>
                   <FormControl>
-                    <Input disabled={loading} placeholder="E-Commerce" {...field} />
+                    <Input 
+                      disabled={loading} 
+                      placeholder="E-Commerce" 
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -97,7 +114,9 @@ export const StoreModal = () => {
               >
                 Cancel
               </Button>
-              <Button disabled={loading} type="submit">Continue</Button>
+              <Button disabled={loading} type="submit">
+                {loading ? "Creating..." : "Create Store"}
+              </Button>
             </div>
           </form>
         </Form>
