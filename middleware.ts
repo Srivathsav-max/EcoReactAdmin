@@ -6,6 +6,13 @@ const publicRoutes = ['/signin', '/signup'];
 const authRoutes = ['/signin', '/signup'];
 const apiAuthRoutes = ['/api/auth/signin', '/api/auth/signup'];
 
+// Check if a route is an admin dashboard route
+const isAdminDashboardRoute = (pathname: string): boolean => {
+  return pathname.startsWith('/[storeId]') || 
+         ['/billboards', '/categories', '/products', '/orders', '/settings', '/layouts']
+           .some(route => pathname === route || pathname.startsWith(`${route}/`));
+};
+
 export async function middleware(request: NextRequest) {
   try {
     const { pathname } = request.nextUrl;
@@ -35,10 +42,15 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next();
       }
 
-      // Check auth for admin routes
-      const token = await request.cookies.get('token')?.value;
-      if (!token && !publicRoutes.includes(pathname)) {
+      // Check admin auth for dashboard routes
+      const adminToken = await request.cookies.get('admin_token')?.value;
+      if (!adminToken && !publicRoutes.includes(pathname)) {
         return NextResponse.redirect(new URL('/signin', request.url));
+      }
+
+      // Don't rewrite admin dashboard paths
+      if (isAdminDashboardRoute(pathname)) {
+        return NextResponse.next();
       }
 
       return NextResponse.next();
@@ -68,13 +80,9 @@ export async function middleware(request: NextRequest) {
       storeDomain = parts[0];
     }
 
-    // Handle store routes
-    if (pathname.includes('/signin') || pathname.includes('/signup')) {
-      return NextResponse.next();
-    }
-
-    // For protected store routes, verify customer auth
-    if (!pathname.startsWith('/api')) {
+    // Check store authentication if accessing private store routes
+    const isStoreAuthRoute = pathname.startsWith('/profile') || pathname.startsWith('/orders');
+    if (isStoreAuthRoute) {
       const customerToken = await request.cookies.get('customer_token')?.value;
       if (!customerToken) {
         return NextResponse.redirect(new URL(`/store/${storeDomain}/signin`, request.url));

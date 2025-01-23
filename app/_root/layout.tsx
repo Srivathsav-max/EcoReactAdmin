@@ -1,31 +1,26 @@
-import { redirect } from 'next/navigation';
-import { getSession, isAdmin } from '@/lib/auth';
+import { getAdminSession, isAdmin } from '@/lib/auth';
 import { ModalProvider } from "@/providers/modal-provider";
-import { ToastProvider } from "@/providers/toast-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
+import { ToastProvider } from "@/providers/toast-provider";
 
-export default async function SetupLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const session = await getSession();
-
-  if (!session) {
-    redirect('/signin');
-  }
-
-  if (!isAdmin(session)) {
-    redirect('/signin');
-  }
-
+  const session = await getAdminSession();
+  
   return (
-    <>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <div className="h-full flex items-center justify-center">
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+      >
         <ToastProvider />
         <ModalProvider />
         {children}
       </ThemeProvider>
-    </>
+    </div>
   );
 }

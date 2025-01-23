@@ -5,13 +5,23 @@ import { ShoppingCart, Menu } from 'lucide-react'
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
+import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuTrigger, NavigationMenuContent } from "@/components/ui/navigation-menu"
 
 interface StoreHeaderProps {
   storeName: string;
   logoUrl: string | null;
+  taxonomies?: {
+    id: string;
+    name: string;
+    taxons: {
+      id: string;
+      name: string;
+      permalink: string;
+    }[];
+  }[];
 }
 
-export function StoreHeader({ storeName, logoUrl }: StoreHeaderProps) {
+export function StoreHeader({ storeName, logoUrl, taxonomies = [] }: StoreHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const params = useParams()
 
@@ -37,18 +47,37 @@ export function StoreHeader({ storeName, logoUrl }: StoreHeaderProps) {
         </div>
 
         <nav className="hidden lg:flex items-center space-x-4 lg:space-x-6">
-          <Link 
-            href={`${baseUrl}/products`}
-            className="text-sm font-medium transition-colors hover:text-primary"
-          >
-            Products
-          </Link>
-          <Link 
-            href={`${baseUrl}/categories`}
-            className="text-sm font-medium transition-colors hover:text-primary"
-          >
-            Categories
-          </Link>
+          <NavigationMenu>
+            <NavigationMenuList>
+              {taxonomies.map((taxonomy) => (
+                <NavigationMenuItem key={taxonomy.id}>
+                  <NavigationMenuTrigger>{taxonomy.name}</NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2">
+                      {taxonomy.taxons.map((taxon) => (
+                        <li key={taxon.id}>
+                          <Link
+                            href={`${baseUrl}/categories/${taxon.permalink}`}
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                          >
+                            <div className="text-sm font-medium leading-none">{taxon.name}</div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+              ))}
+              <NavigationMenuItem>
+                <Link 
+                  href={`${baseUrl}/products`}
+                  className="text-sm font-medium transition-colors hover:text-primary"
+                >
+                  All Products
+                </Link>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
         </nav>
 
         <div className="flex items-center">
@@ -74,17 +103,27 @@ export function StoreHeader({ storeName, logoUrl }: StoreHeaderProps) {
       {isMenuOpen && (
         <div className="lg:hidden">
           <div className="px-4 py-2 space-y-1">
+            {taxonomies.map((taxonomy) => (
+              <div key={taxonomy.id} className="space-y-1">
+                <div className="px-3 py-2 text-sm font-medium text-gray-600">
+                  {taxonomy.name}
+                </div>
+                {taxonomy.taxons.map((taxon) => (
+                  <Link
+                    key={taxon.id}
+                    href={`${baseUrl}/categories/${taxon.permalink}`}
+                    className="block px-3 py-2 text-sm font-medium hover:bg-gray-100 rounded-md ml-4"
+                  >
+                    {taxon.name}
+                  </Link>
+                ))}
+              </div>
+            ))}
             <Link 
               href={`${baseUrl}/products`}
               className="block px-3 py-2 text-sm font-medium hover:bg-gray-100 rounded-md"
             >
-              Products
-            </Link>
-            <Link 
-              href={`${baseUrl}/categories`}
-              className="block px-3 py-2 text-sm font-medium hover:bg-gray-100 rounded-md"
-            >
-              Categories
+              All Products
             </Link>
           </div>
         </div>

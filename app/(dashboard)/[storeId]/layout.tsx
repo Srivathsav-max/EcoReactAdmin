@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSession, isAdmin } from '@/lib/auth';
+import { getAdminSession, isAdmin } from '@/lib/auth';
 import prismadb from '@/lib/prismadb';
 import { Sidebar } from "@/components/sidebar";
 import Navbar from '@/components/navbar';
@@ -12,13 +12,9 @@ export default async function DashboardLayout({
   params: { storeId: string }
 }) {
   const { storeId } = await params;
-  const session = await getSession();
+  const session = await getAdminSession();
   
-  if (!session) {
-    redirect('/signin');
-  }
-
-  if (!isAdmin(session)) {
+  if (!session || !isAdmin(session)) {
     redirect('/signin');
   }
 

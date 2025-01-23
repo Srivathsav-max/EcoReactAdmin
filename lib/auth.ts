@@ -18,27 +18,52 @@ export interface CustomerSession {
 
 type Session = AdminSession | CustomerSession;
 
-// Main session getter
-export async function getSession(): Promise<Session | null> {
+// Main session getters
+export async function getAdminSession(): Promise<AdminSession | null> {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
+    const token = cookieStore.get('admin_token')?.value;
 
     if (!token) {
       return null;
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as Session;
-    return decoded;
+    return isAdmin(decoded) ? decoded : null;
   } catch (error) {
-    console.error('[AUTH_ERROR]', error);
+    console.error('[ADMIN_AUTH_ERROR]', error);
+    return null;
+  }
+}
+
+export async function getCustomerSession(): Promise<CustomerSession | null> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('customer_token')?.value;
+
+    if (!token) {
+      return null;
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as Session;
+    return isCustomer(decoded) ? decoded : null;
+  } catch (error) {
+    console.error('[CUSTOMER_AUTH_ERROR]', error);
     return null;
   }
 }
 
 // Auth verification
 export async function verifyAuth(): Promise<Session | null> {
-  return getSession();
+  // Try to get admin session first
+  const adminSession = await getAdminSession();
+  if (adminSession) {
+    return adminSession;
+  }
+
+  // If no admin session, try customer session
+  const customerSession = await getCustomerSession();
+  return customerSession;
 }
 
 // User management
@@ -125,4 +150,17 @@ export function isAdmin(session: Session | null): session is AdminSession {
 
 export function isCustomer(session: Session | null): session is CustomerSession {
   return session?.role === 'customer';
+}
+
+// Cookie management
+export function getAuthCookie(token: string, role: 'admin' | 'customer') {
+  return {
+    name: role === 'admin' ? 'admin_token' : 'customer_token',
+    value: token,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    expires: new Date(Date.now() + (role === 'admin' ? 7 : 30) * 24 * 60 * 60 * 1000)
+  };
 }

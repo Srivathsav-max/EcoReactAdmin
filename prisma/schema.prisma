@@ -34,8 +34,36 @@ model Store {
   attributes      Attribute[]      @relation("StoreToAttribute")
   attributeValues AttributeValue[] @relation("StoreToAttributeValue")
   optionTypes     OptionType[]     @relation("StoreToOptionType")
+  homeLayouts     HomeLayout[]     @relation("StoreToHomeLayout")
 
   @@index([userId])
+}
+
+model HomeLayout {
+  id          String            @id @default(uuid())
+  storeId     String
+  store       Store             @relation("StoreToHomeLayout", fields: [storeId], references: [id])
+  isActive    Boolean           @default(false)
+  name        String
+  components  LayoutComponent[] @relation("LayoutToComponents")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([storeId])
+}
+
+model LayoutComponent {
+  id           String     @id @default(uuid())
+  layoutId     String
+  layout       HomeLayout @relation("LayoutToComponents", fields: [layoutId], references: [id], onDelete: Cascade)
+  type         String
+  position     Int        @default(0)
+  config       Json       @default("{}")
+  isVisible    Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([layoutId])
 }
 
 model Billboard {

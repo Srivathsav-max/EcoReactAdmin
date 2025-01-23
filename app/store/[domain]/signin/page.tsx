@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,10 +50,22 @@ export default function CustomerSignInPage({ params }: CustomerSignInPageProps) 
     try {
       setLoading(true);
       // Pass domain to identify the store
-      await axios.post(`/api/auth/customer/signin?domain=${params.domain}`, data);
-      toast.success('Logged in successfully.');
-      router.push(`/store/${params.domain}`);
-      router.refresh();
+      const response = await axios.post(`/api/auth/customer/signin?domain=${params.domain}`, data, {
+        withCredentials: true
+      });
+      
+      if (response.data) {
+        toast.success('Logged in successfully.');
+        // Force re-fetch of auth state
+        await fetch(`/api/auth/customer/profile?domain=${params.domain}`, {
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
+        router.refresh(); // Refresh server components
+        router.replace(`/store/${params.domain}`);
+      }
     } catch (error) {
       toast.error('Invalid credentials.');
     } finally {

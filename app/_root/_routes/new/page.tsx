@@ -1,17 +1,11 @@
-import { redirect } from "next/navigation";
-import { getSession, isAdmin } from "@/lib/auth";
+import { redirect } from 'next/navigation';
+import { getAdminSession, isAdmin } from "@/lib/auth";
 import prismadb from "@/lib/prismadb";
-import { StoreModal } from "@/components/modals/store-modal";
-import NewStoreClient from "./components/new-store-client";
 
 export default async function NewStorePage() {
-  const session = await getSession();
+  const session = await getAdminSession();
 
-  if (!session) {
-    redirect('/signin');
-  }
-
-  if (!isAdmin(session)) {
+  if (!session || !isAdmin(session)) {
     redirect('/signin');
   }
 
@@ -22,9 +16,14 @@ export default async function NewStorePage() {
     }
   });
 
+  // If they have a store, redirect to it
   if (store) {
     redirect(`/${store.id}`);
   }
 
-  return <NewStoreClient />;
+  return (
+    <div>
+      <h1>Create a new store</h1>
+    </div>
+  );
 }

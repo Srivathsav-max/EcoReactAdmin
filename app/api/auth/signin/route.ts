@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import prismadb from "@/lib/prismadb";
-import { generateAdminToken } from "@/lib/auth";
+import { getAuthCookie } from "@/lib/auth";
 
 export async function POST(
   req: Request,
@@ -44,19 +45,21 @@ export async function POST(
     });
 
     // Generate token
-    const token = generateAdminToken({
-      id: user.id,
-      email: user.email
-    });
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: 'admin' },
+      process.env.JWT_SECRET!,
+      { expiresIn: '7d' }
+    );
 
-    // Set cookie
+    // Set cookie with proper configuration
     const cookieStore = await cookies();
-    cookieStore.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    const cookieConfig = getAuthCookie(token, 'admin');
+    cookieStore.set(cookieConfig.name, cookieConfig.value, {
+      httpOnly: cookieConfig.httpOnly,
+      secure: cookieConfig.secure,
+      sameSite: cookieConfig.sameSite as 'lax',
+      path: cookieConfig.path,
+      expires: cookieConfig.expires
     });
 
     return NextResponse.json({

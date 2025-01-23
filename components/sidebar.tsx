@@ -26,7 +26,8 @@ import {
   ArrowLeftRight,
   ChevronRight,
   FolderTree,
-  FileQuestion
+  FileQuestion,
+  LayoutTemplate
 } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 
@@ -178,6 +179,12 @@ export function Sidebar({ store }: SidebarProps) {
       icon: FileText,
       items: [
         {
+          label: "Home Layouts",
+          href: `/${params.storeId}/layouts`,
+          active: pathname === `/${params.storeId}/layouts`,
+          icon: <LayoutTemplate className="h-4 w-4" />
+        },
+        {
           label: "Billboards",
           href: `/${params.storeId}/billboards`,
           active: pathname === `/${params.storeId}/billboards`,
@@ -275,4 +282,4 @@ export function Sidebar({ store }: SidebarProps) {
       </div>
     </div>
   );
-} 
+}
