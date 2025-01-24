@@ -6,6 +6,7 @@ const nextConfig = {
       'localhost',
       'lvh.me',
       'vercel.app',
+      'example.com',
       process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT?.replace(/^https?:\/\//, '') || '',
     ]
   },

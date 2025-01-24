@@ -48,7 +48,12 @@ export function ProductsTableShell() {
     const fetchProducts = async () => {
       try {
         const response = await fetch(`/api/${params.storeId}/products`);
-        const products = await response.json();
+        const { data: products } = await response.json();
+        
+        if (!products) {
+          setData([]);
+          return;
+        }
         
         const formattedProducts = products.map((item: any) => ({
           id: item.id,
