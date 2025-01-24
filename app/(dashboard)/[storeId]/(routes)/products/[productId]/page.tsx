@@ -2,30 +2,10 @@
 
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
+
 import { ProductForm } from "./components/product-form";
 import { Spinner } from "@/components/ui/spinner";
-import { 
-  PrismaTaxon,
-  NavigationTaxonomy,
-  convertToNavigationTaxonomy,
-  Brand,
-  Color,
-  Size,
-  Product
-} from "@/types/models";
-
-interface PageData {
-  product: Product | null;
-  brands: Brand[];
-  colors: Color[];
-  sizes: Size[];
-  taxonomies: NavigationTaxonomy[];
-  store: {
-    currency?: string;
-    locale?: string;
-    [key: string]: any;
-  } | null;
-}
+import { PageData } from "@/types";
 
 const ProductPage = () => {
   const params = useParams();
@@ -43,17 +23,21 @@ const ProductPage = () => {
     const fetchData = async () => {
       try {
         const fetchPromises = [
+          // Fetch brands
           fetch(`/api/${params.storeId}/brands`),
+          // Fetch colors
           fetch(`/api/${params.storeId}/colors`),
+          // Fetch sizes
           fetch(`/api/${params.storeId}/sizes`),
+          // Fetch taxonomies
           fetch(`/api/${params.storeId}/taxonomies`),
+          // Fetch store settings
           fetch(`/api/${params.storeId}/store`),
         ];
 
+        // Add product fetch if we're editing
         if (params.productId !== "new") {
-          fetchPromises.push(
-            fetch(`/api/${params.storeId}/products/${params.productId}`)
-          );
+          fetchPromises.push(fetch(`/api/${params.storeId}/products/${params.productId}`));
         }
 
         const responses = await Promise.all(fetchPromises);
@@ -66,27 +50,20 @@ const ProductPage = () => {
           ...rest
         ] = responses;
 
-        // Process responses with proper typing
         const [
           brands,
           colors,
           sizes,
-          rawTaxonomies,
+          taxonomies,
           store,
           ...others
         ] = await Promise.all([
-          brandsRes.json() as Promise<Brand[]>,
-          colorsRes.json() as Promise<Color[]>,
-          sizesRes.json() as Promise<Size[]>,
-          taxonomiesRes.json()
-            .then(data => (data as Array<PrismaTaxon['taxonomy'] & { taxons: PrismaTaxon[] }>)
-            .map(convertToNavigationTaxonomy)),
-          storeRes.json() as Promise<{ 
-            currency?: string; 
-            locale?: string;
-            [key: string]: any 
-          }>,
-          ...rest.map(r => r?.json() as Promise<Product>)
+          brandsRes.json(),
+          colorsRes.json(),
+          sizesRes.json(),
+          taxonomiesRes.json(),
+          storeRes.json(),
+          ...rest.map(r => r?.json())
         ]);
 
         setData({
@@ -94,7 +71,7 @@ const ProductPage = () => {
           brands,
           colors,
           sizes,
-          taxonomies: rawTaxonomies,
+          taxonomies,
           store
         });
       } catch (error) {
