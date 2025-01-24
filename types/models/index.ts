@@ -94,6 +94,7 @@ export interface PrismaTaxon {
     createdAt: Date;
     updatedAt: Date;
   };
+  children?: PrismaTaxon[];
 }
 
 export interface PrismaProduct {
@@ -101,7 +102,7 @@ export interface PrismaProduct {
   name: string;
   slug: string;
   description: string | null;
-  price: any; // Decimal from Prisma
+  price: any;
   status: string;
   isVisible: boolean;
   hasVariants: boolean;
@@ -118,8 +119,8 @@ export interface PrismaVariant {
   id: string;
   name: string;
   sku: string;
-  price: any; // Decimal from Prisma
-  compareAtPrice: any | null; // Decimal from Prisma
+  price: any;
+  compareAtPrice: any | null;
   position: number;
   isVisible: boolean;
   isDefault: boolean;
@@ -132,7 +133,7 @@ export interface PrismaVariant {
   updatedAt: Date;
 }
 
-// Component interfaces (what we use in the UI)
+// Component interfaces (UI types)
 export interface OptionType {
   id: string;
   name: string;
@@ -213,11 +214,26 @@ export interface Product {
   hasVariants: boolean;
   images: Image[];
   brand: Brand | null;
-  variants: Variant[];
+  brandId?: string;
+  variants: (Variant & { 
+    size: Size | null;
+    color: Color | null;
+  })[];
   taxons: Taxon[];
   optionTypes: OptionType[];
   createdAt: Date;
   updatedAt: Date;
+  tags: string[];
+  minimumQuantity: number;
+  maximumQuantity?: number;
+  sku?: string;
+  colorId?: string;
+  sizeId?: string;
+  costPrice?: number;
+  compareAtPrice?: number;
+  isPromotionable?: boolean;
+  metaTitle?: string;
+  metaDescription?: string;
 }
 
 export interface FilterParams {
@@ -227,17 +243,22 @@ export interface FilterParams {
   sort?: string;
 }
 
-// Navigation types
-export interface SimpleTaxon {
+// Navigation types with required permalink
+export interface NavigationTaxon {
   id: string;
   name: string;
   permalink: string;
+  description?: string | null;
+  position: number;
+  billboard?: Billboard | null;
+  children?: NavigationTaxon[];
 }
 
 export interface NavigationTaxonomy {
   id: string;
   name: string;
-  taxons: SimpleTaxon[];
+  description?: string | null;
+  taxons: NavigationTaxon[];
 }
 
 // Layout Component Types
@@ -302,4 +323,32 @@ export interface LayoutComponent {
   config: ComponentConfig;
   position: number;
   isVisible: boolean;
+}
+
+// Type conversion utilities
+export function isPrismaTaxon(taxon: unknown): taxon is PrismaTaxon {
+  return (taxon as PrismaTaxon)?.taxonomy !== undefined;
+}
+
+export function convertToNavigationTaxon(taxon: PrismaTaxon): NavigationTaxon {
+  return {
+    id: taxon.id,
+    name: taxon.name,
+    permalink: taxon.permalink || '',
+    description: taxon.description || null,
+    position: taxon.position,
+    billboard: taxon.billboard || null,
+    children: taxon.children?.map(convertToNavigationTaxon)
+  };
+}
+
+export function convertToNavigationTaxonomy(
+  taxonomy: PrismaTaxon['taxonomy'] & { taxons: PrismaTaxon[] }
+): NavigationTaxonomy {
+  return {
+    id: taxonomy.id,
+    name: taxonomy.name,
+    description: taxonomy.description || null,
+    taxons: taxonomy.taxons.map(convertToNavigationTaxon)
+  };
 }
