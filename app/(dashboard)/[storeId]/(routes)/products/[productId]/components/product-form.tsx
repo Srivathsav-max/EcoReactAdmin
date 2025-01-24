@@ -1,17 +1,26 @@
 "use client";
 
 import * as z from "zod";
+import {
+  Product,
+  Brand,
+  Color,
+  Size,
+  NavigationTaxonomy,
+  Variant
+} from "@/types/models";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-hot-toast";
 import { Trash } from "lucide-react";
-
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import { Heading } from "@/components/ui/heading";
+import { Spinner } from "@/components/ui/spinner";
 import { AlertModal } from "@/components/modals/alert-modal";
 
 import {
@@ -56,7 +65,33 @@ const formSchema = z.object({
   })).default([]),
 });
 
-export const ProductForm: React.FC<ProductFormProps> = ({
+type ProductWithMetadata = Product & {
+  brandId?: string;
+  colorId?: string;
+  sizeId?: string;
+  sku?: string;
+  barcode?: string;
+  tags?: string[];
+  taxRate: number;
+  weight?: number;
+  height?: number;
+  width?: number;
+  depth?: number;
+  minimumQuantity: number;
+  maximumQuantity?: number;
+  variants: Array<Variant & { size: Size | null; color: Color | null }>;
+  optionTypes?: Array<{ name: string; presentation: string; position: number }>;
+};
+
+export const ProductForm: React.FC<{
+  initialData: ProductWithMetadata | null;
+  brands: Brand[];
+  colors: Color[];
+  sizes: Size[];
+  taxonomies: NavigationTaxonomy[];
+  storeCurrency: string;
+  storeLocale: string;
+}> = ({
   initialData,
   brands,
   colors,
@@ -70,6 +105,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const title = initialData ? "Edit product" : "Create product";
   const description = initialData ? "Edit product details" : "Add a new product";
@@ -79,7 +115,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const defaultValues: ProductFormType = initialData ? {
     name: initialData.name,
     description: initialData.description || '',
-    images: initialData.images.map(img => ({
+    images: initialData.images.map((img: { url: string; fileId: string }) => ({
       url: img.url,
       fileId: img.fileId,
     })),
@@ -101,7 +137,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     depth: initialData.depth,
     minimumQuantity: initialData.minimumQuantity || 1,
     maximumQuantity: initialData.maximumQuantity,
-    optionTypes: initialData.optionTypes?.map(ot => ({
+    optionTypes: initialData.optionTypes?.map((ot: { name: string; presentation: string; position: number }) => ({
       name: ot.name,
       presentation: ot.presentation,
       position: ot.position,
@@ -138,58 +174,66 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   const onSubmit = async (data: ProductFormType) => {
     try {
-      setLoading(true);
+      setIsSaving(true);
       
       const formattedData = {
         ...data,
-        price: data.price * 100, // Convert to cents
-        taxRate: data.taxRate ? data.taxRate / 100 : undefined, // Convert from percentage
-        // Ensure we send both url and fileId for images
+        price: parseFloat(data.price.toString()), // Keep original price as is
+        taxRate: data.taxRate ? Number((data.taxRate / 100).toFixed(4)) : undefined, // Convert from percentage with precision
         images: data.images.map(img => ({
           url: img.url,
           fileId: img.fileId,
         })),
       };
 
-      if (initialData) {
-        await fetch(`/api/${params.storeId}/products/${params.productId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formattedData)
-        });
-      } else {
-        await fetch(`/api/${params.storeId}/products`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formattedData)
-        });
+      const response = initialData
+        ? await fetch(`/api/${params.storeId}/products/${params.productId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formattedData)
+          })
+        : await fetch(`/api/${params.storeId}/products`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formattedData)
+          });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save product');
       }
 
-      router.push(`/${params.storeId}/products`);
+      await router.push(`/${params.storeId}/products`);
       router.refresh();
       toast.success(toastMessage);
     } catch (error) {
       toast.error("Something went wrong.");
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
   const onDelete = async () => {
     try {
       setLoading(true);
-      await fetch(`/api/${params.storeId}/products/${params.productId}`, {
+      const response = await fetch(`/api/${params.storeId}/products/${params.productId}`, {
         method: 'DELETE'
       });
-      router.push(`/${params.storeId}/products`);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete product');
+      }
+
+      await router.push(`/${params.storeId}/products`);
       router.refresh();
-      toast.success("Product deleted.");
+      toast.success("Product deleted successfully");
     } catch (error) {
-      toast.error("Something went wrong.");
+      toast.error(error instanceof Error ? error.message : "An unexpected error occurred while deleting the product");
     } finally {
       setLoading(false);
       setOpen(false);
@@ -204,57 +248,100 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         onConfirm={onDelete}
         loading={loading}
       />
-      <div className="flex items-center justify-between">
-        <Heading
-          title={title}
-          description={description}
-        />
-        {initialData && (
-          <Button
-            disabled={loading}
-            variant="destructive"
-            size="sm"
-            onClick={() => setOpen(true)}
-          >
-            <Trash className="h-4 w-4" />
-          </Button>
-        )}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <Heading
+            title={title}
+            description={description}
+          />
+          {initialData && (
+            <Button
+              disabled={loading}
+              variant="destructive"
+              size="icon"
+              onClick={() => setOpen(true)}
+              className="h-8 w-8"
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        <Separator className="mt-4" />
       </div>
-      <Separator />
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <ProductMedia 
-            form={form}
-            loading={loading}
-          />
-          <Separator />
-          <BasicInformation 
-            form={form}
-            loading={loading}
-            brands={brands}
-            storeCurrency={storeCurrency}
-          />
-          <Separator />
-          <ProductVariants 
-            form={form}
-            loading={loading}
-            colors={colors}
-            sizes={sizes}
-          />
-          <Separator />
-          <ProductSpecifications 
-            form={form}
-            loading={loading}
-            taxonomies={taxonomies}
-          />
-          <Separator />
-          <ProductVisibility 
-            form={form}
-            loading={loading}
-          />
-          <Button disabled={loading} className="ml-auto" type="submit">
-            {action}
-          </Button>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className={cn(
+            "space-y-8",
+            isSaving && "opacity-50 pointer-events-none"
+          )}>
+            <div className="space-y-6">
+              <div className="rounded-lg border bg-card p-4 space-y-8">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-1 bg-primary rounded-full" />
+                  <h3 className="text-lg font-semibold">Product Information</h3>
+                </div>
+                <ProductMedia
+                  form={form}
+                  loading={loading}
+                />
+                <Separator />
+                <BasicInformation
+                  form={form}
+                  loading={loading}
+                  brands={brands}
+                  storeCurrency={storeCurrency}
+                />
+              </div>
+
+              <div className="rounded-lg border bg-card p-4 space-y-8">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-1 bg-primary rounded-full" />
+                  <h3 className="text-lg font-semibold">Options & Categories</h3>
+                </div>
+                <ProductVariants
+                  form={form}
+                  loading={loading}
+                  colors={colors}
+                  sizes={sizes}
+                />
+                <Separator />
+                <ProductSpecifications
+                  form={form}
+                  loading={loading}
+                  taxonomies={taxonomies}
+                />
+              </div>
+
+              <div className="rounded-lg border bg-card p-4 space-y-6">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-1 bg-primary rounded-full" />
+                  <h3 className="text-lg font-semibold">Visibility Settings</h3>
+                </div>
+                <ProductVisibility
+                  form={form}
+                  loading={loading}
+                />
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-white border-t p-4 mt-6 -mx-6 -mb-6">
+              <div className="flex items-center justify-end max-w-7xl mx-auto">
+                <Button
+                  disabled={isSaving}
+                  type="submit"
+                  size="lg"
+                  className="min-w-[150px] bg-primary hover:bg-primary/90"
+                >
+                  {isSaving ? (
+                    <div className="flex items-center gap-2">
+                      <Spinner size={16} className="text-white" />
+                      <span>Saving...</span>
+                    </div>
+                  ) : action}
+                </Button>
+              </div>
+            </div>
+          </div>
         </form>
       </Form>
     </>

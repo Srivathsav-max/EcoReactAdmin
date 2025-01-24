@@ -228,16 +228,32 @@ export interface FilterParams {
 }
 
 // Navigation types
-export interface SimpleTaxon {
+export interface TaxonNode {
   id: string;
   name: string;
   permalink: string;
+  description?: string | null;
+  position: number;
+  children?: TaxonNode[];
+  parentId?: string | null;
+}
+
+export interface TaxonWithMeta extends TaxonNode {
+  fullPath: string;
+  level: number;
+  _count?: {
+    children: number;
+  };
 }
 
 export interface NavigationTaxonomy {
   id: string;
   name: string;
-  taxons: SimpleTaxon[];
+  description?: string | null;
+  taxons: TaxonWithMeta[];
+  _count?: {
+    taxons: number;
+  };
 }
 
 // Layout Component Types

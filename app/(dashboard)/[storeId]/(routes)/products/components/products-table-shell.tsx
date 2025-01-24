@@ -48,14 +48,13 @@ export function ProductsTableShell() {
     const fetchProducts = async () => {
       try {
         const response = await fetch(`/api/${params.storeId}/products`);
-        const { data: products } = await response.json();
+        const result = await response.json();
         
-        if (!products) {
-          setData([]);
-          return;
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to fetch products');
         }
-        
-        const formattedProducts = products.map((item: any) => ({
+
+        const formattedProducts = result.data.map((item: any) => ({
           id: item.id,
           name: item.name,
           description: item.description || "",
@@ -67,7 +66,7 @@ export function ProductsTableShell() {
           stock: item.variants?.reduce((total: number, variant: any) => {
             return total + (variant.stockItems?.[0]?.count || 0);
           }, 0) || 0,
-          category: "Wine", // You might want to get this from taxonomies
+          category: item.taxons?.[0]?.name || "Uncategorized",
           isArchived: !item.isVisible,
           createdAt: new Date(item.createdAt).toLocaleDateString(),
           images: item.images || [],
