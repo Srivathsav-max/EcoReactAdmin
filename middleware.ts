@@ -30,6 +30,7 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith('/_next') || 
       pathname.startsWith('/static') || 
       pathname.startsWith('/api/auth') || 
+      pathname.startsWith('/api/graphql') || // Allow GraphQL requests
       pathname.startsWith('/favicon.ico')
     ) {
       return NextResponse.next();
