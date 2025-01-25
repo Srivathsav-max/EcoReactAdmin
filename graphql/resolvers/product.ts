@@ -293,4 +293,88 @@ export const productResolvers = {
       return true;
     },
   },
+
+  // Type resolvers
+  Product: {
+    store: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.store.findUnique({
+        where: { id: parent.storeId }
+      });
+    },
+    brand: async (parent: any, _args: any, context: GraphQLContext) => {
+      if (!parent.brandId) return null;
+      return context.prisma.brand.findUnique({
+        where: { id: parent.brandId }
+      });
+    },
+    variants: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.variant.findMany({
+        where: { productId: parent.id },
+        include: {
+          stockItems: true,
+          optionValues: true
+        }
+      });
+    },
+    images: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.image.findMany({
+        where: { productId: parent.id }
+      });
+    },
+    taxons: async (parent: any, _args: any, context: GraphQLContext) => {
+      const productTaxons = await context.prisma.product.findUnique({
+        where: { id: parent.id },
+        include: { taxons: true }
+      });
+      return productTaxons?.taxons || [];
+    },
+    optionTypes: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.optionType.findMany({
+        where: { productId: parent.id },
+        include: {
+          optionValues: true
+        },
+        orderBy: { position: 'asc' }
+      });
+    },
+  },
+
+  Variant: {
+    product: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.product.findUnique({
+        where: { id: parent.productId }
+      });
+    },
+    stockItems: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.stockItem.findMany({
+        where: { variantId: parent.id }
+      });
+    },
+    optionValues: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.variantOptionValue.findMany({
+        where: { variantId: parent.id },
+        include: { optionValue: true }
+      });
+    },
+    size: async (parent: any, _args: any, context: GraphQLContext) => {
+      if (!parent.sizeId) return null;
+      return context.prisma.size.findUnique({
+        where: { id: parent.sizeId }
+      });
+    },
+    color: async (parent: any, _args: any, context: GraphQLContext) => {
+      if (!parent.colorId) return null;
+      return context.prisma.color.findUnique({
+        where: { id: parent.colorId }
+      });
+    },
+  },
+
+  ProductProperty: {
+    product: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.product.findUnique({
+        where: { id: parent.productId }
+      });
+    },
+  },
 };

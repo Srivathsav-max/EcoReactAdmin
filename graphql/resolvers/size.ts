@@ -193,4 +193,21 @@ export const sizeResolvers = {
       return true;
     },
   },
+
+  // Type resolvers
+  Size: {
+    store: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.store.findUnique({
+        where: { id: parent.storeId }
+      });
+    },
+    variants: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.variant.findMany({
+        where: { sizeId: parent.id },
+        include: {
+          product: true
+        }
+      });
+    }
+  }
 };

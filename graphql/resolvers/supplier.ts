@@ -199,4 +199,13 @@ export const supplierResolvers = {
       return true;
     },
   },
+
+  // Type resolvers
+  Supplier: {
+    store: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.store.findUnique({
+        where: { id: parent.storeId }
+      });
+    }
+  }
 };

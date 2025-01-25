@@ -1,0 +1,51 @@
+type Order {
+  id: ID!
+  storeId: String!
+  store: Store!
+  orderItems: [OrderItem!]!
+  isPaid: Boolean!
+  phone: String!
+  address: String!
+  status: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type OrderItem {
+  id: ID!
+  orderId: String!
+  order: Order!
+  variantId: String!
+  variant: Variant!
+  quantity: Int!
+  price: Decimal!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input OrderCreateInput {
+  storeId: String!
+  phone: String!
+  address: String!
+  items: [OrderItemCreateInput!]!
+}
+
+input OrderItemCreateInput {
+  variantId: String!
+  quantity: Int!
+  price: Decimal!
+}
+
+input OrderUpdateInput {
+  isPaid: Boolean
+  status: String
+  phone: String
+  address: String
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}

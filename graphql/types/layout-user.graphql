@@ -1,0 +1,80 @@
+type HomeLayout {
+  id: ID!
+  storeId: String!
+  store: Store!
+  isActive: Boolean!
+  name: String!
+  components: [LayoutComponent!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type LayoutComponent {
+  id: ID!
+  layoutId: String!
+  layout: HomeLayout!
+  type: String!
+  position: Int!
+  config: JSON!
+  isVisible: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type User {
+  id: ID!
+  name: String
+  email: String!
+  password: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input HomeLayoutCreateInput {
+  storeId: String!
+  name: String!
+  isActive: Boolean
+}
+
+input HomeLayoutUpdateInput {
+  name: String
+  isActive: Boolean
+}
+
+input LayoutComponentCreateInput {
+  layoutId: String!
+  type: String!
+  position: Int
+  config: JSON
+  isVisible: Boolean
+}
+
+input LayoutComponentUpdateInput {
+  type: String
+  position: Int
+  config: JSON
+  isVisible: Boolean
+}
+
+input UserCreateInput {
+  name: String
+  email: String!
+  password: String!
+}
+
+input UserUpdateInput {
+  name: String
+  email: String
+  password: String
+}
+
+enum LayoutComponentType {
+  BANNER
+  PRODUCT_GRID
+  CATEGORY_GRID
+  FEATURED_PRODUCTS
+  TEXT_BLOCK
+  IMAGE_GALLERY
+  NEWSLETTER
+  CUSTOM_HTML
+}

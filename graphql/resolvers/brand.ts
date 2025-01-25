@@ -187,4 +187,18 @@ export const brandResolvers = {
       return true;
     },
   },
+
+  // Type resolvers
+  Brand: {
+    store: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.store.findUnique({
+        where: { id: parent.storeId }
+      });
+    },
+    products: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.product.findMany({
+        where: { brandId: parent.id }
+      });
+    }
+  }
 };

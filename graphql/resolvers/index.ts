@@ -17,6 +17,7 @@ import { reviewResolvers } from './review';
 import { storeResolvers } from './store';
 import { customerResolvers } from './customer';
 import { checkoutResolvers } from './checkout';
+import { orderResolvers } from './order';
 import { GraphQLScalarType, Kind } from 'graphql';
 import { Prisma } from '@prisma/client';
 
@@ -31,7 +32,7 @@ const dateTimeScalar = new GraphQLScalarType({
     return new Date(value);
   },
   parseLiteral(ast: any) {
-    if (ast.kind === 'StringValue') {
+    if (ast.kind === Kind.STRING) {
       return new Date(ast.value);
     }
     return null;
@@ -42,14 +43,14 @@ const decimalScalar = new GraphQLScalarType({
   name: 'Decimal',
   description: 'Decimal custom scalar type',
   serialize(value: any) {
-    return parseFloat(value.toString());
+    return value instanceof Prisma.Decimal ? value.toNumber() : value;
   },
   parseValue(value: any) {
-    return parseFloat(value);
+    return new Prisma.Decimal(value);
   },
   parseLiteral(ast: any) {
-    if (ast.kind === 'FloatValue' || ast.kind === 'IntValue') {
-      return parseFloat(ast.value);
+    if (ast.kind === Kind.FLOAT || ast.kind === Kind.INT) {
+      return new Prisma.Decimal(ast.value);
     }
     return null;
   },
@@ -65,27 +66,7 @@ const jsonScalar = new GraphQLScalarType({
     return value;
   },
   parseLiteral(ast: any) {
-    switch (ast.kind) {
-      case Kind.STRING:
-        return JSON.parse(ast.value);
-      case Kind.OBJECT:
-        return ast.fields.reduce((obj: any, field: any) => {
-          obj[field.name.value] = parseLiteralObject(field.value);
-          return obj;
-        }, {});
-      case Kind.LIST:
-        return ast.values.map(parseLiteralObject);
-      case Kind.INT:
-        return parseInt(ast.value, 10);
-      case Kind.FLOAT:
-        return parseFloat(ast.value);
-      case Kind.BOOLEAN:
-        return ast.value;
-      case Kind.NULL:
-        return null;
-      default:
-        return null;
-    }
+    return parseLiteralObject(ast);
   },
 });
 
@@ -120,7 +101,6 @@ export const resolvers = {
   Decimal: decimalScalar,
   JSON: jsonScalar,
 
-  // Merge Query resolvers
   Query: {
     ...authResolvers.Query,
     ...productResolvers.Query,
@@ -141,9 +121,9 @@ export const resolvers = {
     ...storeResolvers.Query,
     ...customerResolvers.Query,
     ...checkoutResolvers.Query,
+    ...orderResolvers.Query,
   },
 
-  // Merge Mutation resolvers
   Mutation: {
     ...authResolvers.Mutation,
     ...productResolvers.Mutation,
@@ -164,133 +144,32 @@ export const resolvers = {
     ...storeResolvers.Mutation,
     ...customerResolvers.Mutation,
     ...checkoutResolvers.Mutation,
+    ...orderResolvers.Mutation,
   },
 
   // Type resolvers
-  Store: {
-    _count: storeResolvers.Store._count,
-    customers: async (parent: any, _args: any, context: any) => {
-      return context.prisma.customer.findMany({
-        where: { storeId: parent.id }
-      });
-    },
-  },
-
-  Customer: {
-    store: async (parent: any, _args: any, context: any) => {
-      return context.prisma.store.findUnique({
-        where: { id: parent.storeId }
-      });
-    },
-    reviews: customerResolvers.Customer.reviews,
-    addresses: customerResolvers.Customer.addresses,
-    orders: async (parent: any, _args: any, context: any) => {
-      return context.prisma.order.findMany({
-        where: { customerId: parent.id },
-        orderBy: { createdAt: 'desc' },
-        include: {
-          orderItems: {
-            include: {
-              variant: {
-                include: {
-                  product: true
-                }
-              }
-            }
-          }
-        }
-      });
-    },
-  },
-
-  Address: {
-    customer: async (parent: any, _args: any, context: any) => {
-      return context.prisma.customer.findUnique({
-        where: { id: parent.customerId }
-      });
-    },
-  },
-
-  Order: {
-    store: async (parent: any, _args: any, context: any) => {
-      return context.prisma.store.findUnique({
-        where: { id: parent.storeId }
-      });
-    },
-    customer: async (parent: any, _args: any, context: any) => {
-      return context.prisma.customer.findUnique({
-        where: { id: parent.customerId }
-      });
-    },
-    orderItems: async (parent: any, _args: any, context: any) => {
-      return context.prisma.orderItem.findMany({
-        where: { orderId: parent.id },
-        include: {
-          variant: {
-            include: {
-              product: true
-            }
-          }
-        }
-      });
-    },
-    total: async (parent: any) => {
-      let total = 0;
-      for (const item of parent.orderItems) {
-        total += item.price.toNumber() * item.quantity;
-      }
-      return total;
-    },
-  },
-
-  OrderItem: {
-    order: async (parent: any, _args: any, context: any) => {
-      return context.prisma.order.findUnique({
-        where: { id: parent.orderId }
-      });
-    },
-    variant: async (parent: any, _args: any, context: any) => {
-      return context.prisma.variant.findUnique({
-        where: { id: parent.variantId },
-        include: {
-          product: true
-        }
-      });
-    },
-  },
-
-  Product: {
-    brand: async (parent: any, _args: any, context: any) => {
-      if (!parent.brandId) return null;
-      return context.prisma.brand.findUnique({
-        where: { id: parent.brandId }
-      });
-    },
-    taxons: async (parent: any, _args: any, context: any) => {
-      const productTaxons = await context.prisma.product.findUnique({
-        where: { id: parent.id },
-        include: { taxons: true }
-      });
-      return productTaxons?.taxons || [];
-    },
-    variants: async (parent: any, _args: any, context: any) => {
-      return context.prisma.variant.findMany({
-        where: { productId: parent.id },
-        include: {
-          stockItems: true
-        }
-      });
-    },
-    optionTypes: async (parent: any, _args: any, context: any) => {
-      return context.prisma.optionType.findMany({
-        where: { productId: parent.id },
-        include: {
-          optionValues: true
-        },
-        orderBy: {
-          position: 'asc'
-        }
-      });
-    },
-  },
+  Store: storeResolvers.Store,
+  Product: productResolvers.Product,
+  Variant: productResolvers.Variant,
+  ProductProperty: productResolvers.ProductProperty,
+  Order: orderResolvers.Order,
+  OrderItem: orderResolvers.OrderItem,
+  Customer: customerResolvers.Customer,
+  Address: customerResolvers.Address,
+  Taxonomy: taxonomyResolvers.Taxonomy,
+  Taxon: taxonomyResolvers.Taxon,
+  Billboard: billboardResolvers.Billboard,
+  Brand: brandResolvers.Brand,
+  Supplier: supplierResolvers.Supplier,
+  Attribute: attributeResolvers.Attribute,
+  AttributeValue: attributeValueResolvers.AttributeValue,
+  OptionType: optionTypeResolvers.OptionType,
+  OptionValue: optionValueResolvers.OptionValue,
+  StockItem: stockItemResolvers.StockItem,
+  StockMovement: stockMovementResolvers.StockMovement,
+  Size: sizeResolvers.Size,
+  Color: colorResolvers.Color,
+  HomeLayout: layoutResolvers.HomeLayout,
+  LayoutComponent: layoutResolvers.LayoutComponent,
+  ProductReview: reviewResolvers.ProductReview
 };

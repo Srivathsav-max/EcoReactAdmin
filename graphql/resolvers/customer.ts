@@ -92,7 +92,6 @@ export const customerResolvers = {
 
       requireStoreAccess(context, storeId);
 
-      // Check if email is already in use for this store
       const existingCustomer = await context.prisma.customer.findFirst({
         where: {
           email,
@@ -108,7 +107,7 @@ export const customerResolvers = {
         data: {
           name,
           email,
-          password, // Note: In a real application, password should be hashed
+          password,
           phone,
           storeId,
         },
@@ -137,7 +136,6 @@ export const customerResolvers = {
       const { id, storeId, input } = args;
       requireStoreAccess(context, storeId);
 
-      // If email is being updated, check if it's already in use
       if (input.email) {
         const existingCustomer = await context.prisma.customer.findFirst({
           where: {
@@ -264,7 +262,12 @@ export const customerResolvers = {
   },
 
   Customer: {
-    reviews: async (parent: any, _args: any, context: any) => {
+    store: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.store.findUnique({
+        where: { id: parent.storeId }
+      });
+    },
+    reviews: async (parent: any, _args: any, context: GraphQLContext) => {
       return context.prisma.productReview.findMany({
         where: { customerId: parent.id },
         orderBy: {
@@ -272,7 +275,7 @@ export const customerResolvers = {
         }
       });
     },
-    addresses: async (parent: any, _args: any, context: any) => {
+    addresses: async (parent: any, _args: any, context: GraphQLContext) => {
       return context.prisma.address.findMany({
         where: { customerId: parent.id },
         orderBy: [
@@ -280,6 +283,14 @@ export const customerResolvers = {
           { createdAt: 'desc' }
         ]
       });
-    },
+    }
   },
+
+  Address: {
+    customer: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.customer.findUnique({
+        where: { id: parent.customerId }
+      });
+    }
+  }
 };

@@ -1,0 +1,51 @@
+type Store {
+  id: ID!
+  name: String!
+  userId: String!
+  currency: String
+  locale: String
+  domain: String
+  themeSettings: JSON
+  customCss: String
+  logoUrl: String
+  faviconUrl: String
+  billboards: [Billboard!]
+  products: [Product!]
+  sizes: [Size!]
+  colors: [Color!]
+  orders: [Order!]
+  customers: [Customer!]
+  taxonomies: [Taxonomy!]
+  stockItems: [StockItem!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  brands: [Brand!]
+  suppliers: [Supplier!]
+  attributes: [Attribute!]
+  attributeValues: [AttributeValue!]
+  optionTypes: [OptionType!]
+  homeLayouts: [HomeLayout!]
+}
+
+input StoreCreateInput {
+  name: String!
+  userId: String!
+  currency: String
+  locale: String
+  domain: String
+  themeSettings: JSON
+  customCss: String
+  logoUrl: String
+  faviconUrl: String
+}
+
+input StoreUpdateInput {
+  name: String
+  currency: String
+  locale: String
+  domain: String
+  themeSettings: JSON
+  customCss: String
+  logoUrl: String
+  faviconUrl: String
+}

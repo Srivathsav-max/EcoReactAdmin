@@ -1,0 +1,78 @@
+type Taxonomy {
+  id: ID!
+  name: String!
+  description: String
+  storeId: String!
+  store: Store!
+  taxons: [Taxon!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Taxon {
+  id: ID!
+  name: String!
+  description: String
+  position: Int!
+  permalink: String
+  taxonomyId: String!
+  taxonomy: Taxonomy!
+  billboard: Billboard
+  billboardId: String
+  parentId: String
+  parent: Taxon
+  children: [Taxon!]!
+  products: [Product!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Billboard {
+  id: ID!
+  storeId: String!
+  store: Store!
+  label: String!
+  imageUrl: String!
+  taxons: [Taxon!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input TaxonomyCreateInput {
+  name: String!
+  description: String
+  storeId: String!
+}
+
+input TaxonomyUpdateInput {
+  name: String
+  description: String
+}
+
+input TaxonCreateInput {
+  name: String!
+  description: String
+  position: Int
+  taxonomyId: String!
+  billboardId: String
+  parentId: String
+}
+
+input TaxonUpdateInput {
+  name: String
+  description: String
+  position: Int
+  billboardId: String
+  parentId: String
+}
+
+input BillboardCreateInput {
+  storeId: String!
+  label: String!
+  imageUrl: String!
+}
+
+input BillboardUpdateInput {
+  label: String
+  imageUrl: String
+}

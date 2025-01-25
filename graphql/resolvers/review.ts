@@ -238,16 +238,16 @@ export const reviewResolvers = {
     },
   },
 
-  Review: {
-    product: async (parent: any, _args: any, context: any) => {
+  ProductReview: {
+    product: async (parent: any, _args: any, context: GraphQLContext) => {
       return context.prisma.product.findUnique({
         where: { id: parent.productId }
       });
     },
-    customer: async (parent: any, _args: any, context: any) => {
+    customer: async (parent: any, _args: any, context: GraphQLContext) => {
       return context.prisma.customer.findUnique({
         where: { id: parent.customerId }
       });
-    },
+    }
   },
 };

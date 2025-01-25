@@ -193,4 +193,18 @@ export const billboardResolvers = {
       return true;
     },
   },
+
+  // Type resolvers
+  Billboard: {
+    store: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.store.findUnique({
+        where: { id: parent.storeId }
+      });
+    },
+    taxons: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.taxon.findMany({
+        where: { billboardId: parent.id }
+      });
+    }
+  }
 };

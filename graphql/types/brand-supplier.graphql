@@ -1,0 +1,72 @@
+type Brand {
+  id: ID!
+  storeId: String!
+  store: Store!
+  name: String!
+  slug: String!
+  description: String
+  logoUrl: String
+  website: String
+  products: [Product!]!
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Supplier {
+  id: ID!
+  storeId: String!
+  store: Store!
+  name: String!
+  code: String!
+  email: String
+  phone: String
+  address: String
+  website: String
+  description: String
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input BrandCreateInput {
+  storeId: String!
+  name: String!
+  slug: String!
+  description: String
+  logoUrl: String
+  website: String
+  isActive: Boolean
+}
+
+input BrandUpdateInput {
+  name: String
+  slug: String
+  description: String
+  logoUrl: String
+  website: String
+  isActive: Boolean
+}
+
+input SupplierCreateInput {
+  storeId: String!
+  name: String!
+  code: String!
+  email: String
+  phone: String
+  address: String
+  website: String
+  description: String
+  isActive: Boolean
+}
+
+input SupplierUpdateInput {
+  name: String
+  code: String
+  email: String
+  phone: String
+  address: String
+  website: String
+  description: String
+  isActive: Boolean
+}

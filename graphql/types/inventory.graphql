@@ -1,0 +1,107 @@
+type StockItem {
+  id: ID!
+  variantId: String!
+  variant: Variant!
+  storeId: String!
+  store: Store!
+  count: Int!
+  stockStatus: String!
+  reserved: Int!
+  backorderedQty: Int!
+  stockMovements: [StockMovement!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type StockMovement {
+  id: ID!
+  variantId: String!
+  variant: Variant!
+  stockItemId: String!
+  stockItem: StockItem!
+  quantity: Int!
+  type: String!
+  reason: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Size {
+  id: ID!
+  storeId: String!
+  store: Store!
+  name: String!
+  value: String!
+  variants: [Variant!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Color {
+  id: ID!
+  storeId: String!
+  store: Store!
+  name: String!
+  value: String!
+  variants: [Variant!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input StockItemCreateInput {
+  variantId: String!
+  storeId: String!
+  count: Int!
+  stockStatus: StockStatus
+  reserved: Int
+  backorderedQty: Int
+}
+
+input StockItemUpdateInput {
+  count: Int
+  stockStatus: StockStatus
+  reserved: Int
+  backorderedQty: Int
+}
+
+input StockMovementCreateInput {
+  variantId: String!
+  stockItemId: String!
+  quantity: Int!
+  type: StockMovementType!
+  reason: String
+}
+
+input SizeCreateInput {
+  storeId: String!
+  name: String!
+  value: String!
+}
+
+input SizeUpdateInput {
+  name: String
+  value: String
+}
+
+input ColorCreateInput {
+  storeId: String!
+  name: String!
+  value: String!
+}
+
+input ColorUpdateInput {
+  name: String
+  value: String
+}
+
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+}
+
+enum StockMovementType {
+  INCREMENT
+  DECREMENT
+  ADJUSTMENT
+}

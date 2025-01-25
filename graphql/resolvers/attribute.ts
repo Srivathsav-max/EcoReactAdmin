@@ -18,7 +18,7 @@ export const attributeResolvers = {
 
       requireStoreAccess(context, storeId);
 
-      const attributes = await context.prisma.attributes.findMany({
+      const attributes = await context.prisma.attribute.findMany({
         where: {
           storeId
         },
@@ -47,7 +47,7 @@ export const attributeResolvers = {
 
       requireStoreAccess(context, storeId);
 
-      const attribute = await context.prisma.attributes.findFirst({
+      const attribute = await context.prisma.attribute.findFirst({
         where: {
           id,
           storeId
@@ -113,7 +113,7 @@ export const attributeResolvers = {
         throw new Error('Unauthorized');
       }
 
-      const attribute = await context.prisma.attributes.create({
+      const attribute = await context.prisma.attribute.create({
         data: {
           name,
           code,
@@ -166,7 +166,7 @@ export const attributeResolvers = {
         throw new Error('Unauthorized');
       }
 
-      const attribute = await context.prisma.attributes.update({
+      const attribute = await context.prisma.attribute.update({
         where: {
           id
         },
@@ -203,7 +203,7 @@ export const attributeResolvers = {
         throw new Error('Unauthorized');
       }
 
-      await context.prisma.attributes.delete({
+      await context.prisma.attribute.delete({
         where: {
           id
         }
@@ -214,7 +214,12 @@ export const attributeResolvers = {
   },
 
   Attribute: {
-    values: async (parent: any, _args: any, context: any) => {
+    store: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.store.findUnique({
+        where: { id: parent.storeId }
+      });
+    },
+    values: async (parent: any, _args: any, context: GraphQLContext) => {
       return context.prisma.attributeValue.findMany({
         where: {
           attributeId: parent.id

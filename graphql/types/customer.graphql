@@ -1,0 +1,99 @@
+type Customer {
+  id: ID!
+  storeId: String!
+  store: Store!
+  name: String!
+  email: String!
+  password: String!
+  phone: String
+  addresses: [Address!]!
+  reviews: [ProductReview!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Address {
+  id: ID!
+  customerId: String!
+  customer: Customer!
+  type: String!
+  street: String!
+  city: String!
+  state: String!
+  postalCode: String!
+  country: String!
+  isDefault: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ProductReview {
+  id: ID!
+  productId: String!
+  product: Product!
+  customerId: String!
+  customer: Customer!
+  rating: Int!
+  title: String
+  content: String!
+  status: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input CustomerCreateInput {
+  storeId: String!
+  name: String!
+  email: String!
+  password: String!
+  phone: String
+}
+
+input CustomerUpdateInput {
+  name: String
+  email: String
+  password: String
+  phone: String
+}
+
+input AddressCreateInput {
+  customerId: String!
+  type: String!
+  street: String!
+  city: String!
+  state: String!
+  postalCode: String!
+  country: String!
+  isDefault: Boolean
+}
+
+input AddressUpdateInput {
+  type: String
+  street: String
+  city: String
+  state: String
+  postalCode: String
+  country: String
+  isDefault: Boolean
+}
+
+input ProductReviewCreateInput {
+  productId: String!
+  customerId: String!
+  rating: Int!
+  title: String
+  content: String!
+}
+
+input ProductReviewUpdateInput {
+  rating: Int
+  title: String
+  content: String
+  status: String
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}

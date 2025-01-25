@@ -245,4 +245,27 @@ export const stockItemResolvers = {
       return updatedStockItem;
     },
   },
+
+  // Type resolvers
+  StockItem: {
+    store: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.store.findUnique({
+        where: { id: parent.storeId }
+      });
+    },
+    variant: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.variant.findUnique({
+        where: { id: parent.variantId },
+        include: {
+          product: true
+        }
+      });
+    },
+    stockMovements: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.stockMovement.findMany({
+        where: { stockItemId: parent.id },
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+  }
 };

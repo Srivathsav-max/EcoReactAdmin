@@ -1,0 +1,127 @@
+type Attribute {
+  id: ID!
+  name: String!
+  code: String!
+  type: String!
+  isRequired: Boolean!
+  isVisible: Boolean!
+  position: Int!
+  storeId: String!
+  store: Store!
+  values: [AttributeValue!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type AttributeValue {
+  id: ID!
+  value: String!
+  position: Int!
+  attributeId: String!
+  attribute: Attribute!
+  storeId: String!
+  store: Store!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type OptionType {
+  id: ID!
+  storeId: String!
+  productId: String!
+  name: String!
+  presentation: String!
+  position: Int!
+  store: Store!
+  product: Product!
+  optionValues: [OptionValue!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type OptionValue {
+  id: ID!
+  name: String!
+  presentation: String!
+  position: Int!
+  optionType: OptionType!
+  optionTypeId: String!
+  variants: [VariantOptionValue!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type VariantOptionValue {
+  id: ID!
+  variantId: String!
+  variant: Variant!
+  optionValueId: String!
+  optionValue: OptionValue!
+}
+
+input AttributeCreateInput {
+  name: String!
+  code: String!
+  type: String!
+  isRequired: Boolean
+  isVisible: Boolean
+  position: Int
+  storeId: String!
+}
+
+input AttributeUpdateInput {
+  name: String
+  code: String
+  type: String
+  isRequired: Boolean
+  isVisible: Boolean
+  position: Int
+}
+
+input AttributeValueCreateInput {
+  value: String!
+  position: Int
+  attributeId: String!
+  storeId: String!
+}
+
+input AttributeValueUpdateInput {
+  value: String
+  position: Int
+}
+
+input OptionTypeCreateInput {
+  storeId: String!
+  productId: String!
+  name: String!
+  presentation: String!
+  position: Int
+}
+
+input OptionTypeUpdateInput {
+  name: String
+  presentation: String
+  position: Int
+}
+
+input OptionValueCreateInput {
+  name: String!
+  presentation: String!
+  position: Int
+  optionTypeId: String!
+}
+
+input OptionValueUpdateInput {
+  name: String
+  presentation: String
+  position: Int
+}
+
+enum AttributeType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  DATE
+  SELECT
+  MULTI_SELECT
+}

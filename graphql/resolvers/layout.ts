@@ -96,7 +96,6 @@ export const layoutResolvers = {
         throw new Error('Name is required');
       }
 
-      // Verify store ownership
       const storeByUserId = await context.prisma.store.findFirst({
         where: {
           id: storeId,
@@ -112,6 +111,7 @@ export const layoutResolvers = {
         data: {
           name,
           storeId,
+          isActive: false,
         },
         include: {
           components: true
@@ -144,7 +144,6 @@ export const layoutResolvers = {
         throw new Error('Name is required');
       }
 
-      // Verify store ownership
       const storeByUserId = await context.prisma.store.findFirst({
         where: {
           id: storeId,
@@ -187,7 +186,6 @@ export const layoutResolvers = {
         throw new Error('Unauthorized - Admin access required');
       }
 
-      // Verify store ownership
       const storeByUserId = await context.prisma.store.findFirst({
         where: {
           id: storeId,
@@ -215,16 +213,15 @@ export const layoutResolvers = {
         storeId: string;
         input: {
           type: string;
-          title: string;
-          subtitle?: string;
           position: number;
-          settings?: any;
+          config?: any;
+          isVisible?: boolean;
         }
       },
       context: GraphQLContext
     ) => {
       const { layoutId, storeId, input } = args;
-      const { type, title, subtitle, position, settings } = input;
+      const { type, position, config = {}, isVisible = true } = input;
 
       const session = await getAdminSession();
       if (!session) {
@@ -236,10 +233,9 @@ export const layoutResolvers = {
       const component = await context.prisma.layoutComponent.create({
         data: {
           type,
-          title,
-          subtitle,
           position,
-          settings,
+          config,
+          isVisible,
           layoutId,
         }
       });
@@ -254,10 +250,9 @@ export const layoutResolvers = {
         storeId: string;
         input: {
           type?: string;
-          title?: string;
-          subtitle?: string;
           position?: number;
-          settings?: any;
+          config?: any;
+          isVisible?: boolean;
         }
       },
       context: GraphQLContext
@@ -304,4 +299,26 @@ export const layoutResolvers = {
       return true;
     },
   },
+
+  HomeLayout: {
+    store: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.store.findUnique({
+        where: { id: parent.storeId }
+      });
+    },
+    components: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.layoutComponent.findMany({
+        where: { layoutId: parent.id },
+        orderBy: { position: 'asc' }
+      });
+    }
+  },
+
+  LayoutComponent: {
+    layout: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.homeLayout.findUnique({
+        where: { id: parent.layoutId }
+      });
+    }
+  }
 };

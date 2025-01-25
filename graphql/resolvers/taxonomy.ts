@@ -214,7 +214,6 @@ export const taxonomyResolvers = {
 
       const hierarchicalTaxons = buildTaxonHierarchy(taxonomy.taxons);
       
-      // Add full paths and levels to each taxon
       const processNode = (node: any, level: number = 0): any => {
         return {
           ...node,
@@ -252,4 +251,57 @@ export const taxonomyResolvers = {
       return true;
     },
   },
+
+  // Type resolvers
+  Taxonomy: {
+    store: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.store.findUnique({
+        where: { id: parent.storeId }
+      });
+    },
+    taxons: async (parent: any, _args: any, context: GraphQLContext) => {
+      const taxons = await context.prisma.taxon.findMany({
+        where: { taxonomyId: parent.id },
+        include: {
+          billboard: true,
+          children: true,
+          parent: true,
+          products: true
+        }
+      });
+      return buildTaxonHierarchy(taxons);
+    }
+  },
+
+  Taxon: {
+    taxonomy: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.taxonomy.findUnique({
+        where: { id: parent.taxonomyId }
+      });
+    },
+    billboard: async (parent: any, _args: any, context: GraphQLContext) => {
+      if (!parent.billboardId) return null;
+      return context.prisma.billboard.findUnique({
+        where: { id: parent.billboardId }
+      });
+    },
+    parent: async (parent: any, _args: any, context: GraphQLContext) => {
+      if (!parent.parentId) return null;
+      return context.prisma.taxon.findUnique({
+        where: { id: parent.parentId }
+      });
+    },
+    children: async (parent: any, _args: any, context: GraphQLContext) => {
+      return context.prisma.taxon.findMany({
+        where: { parentId: parent.id }
+      });
+    },
+    products: async (parent: any, _args: any, context: GraphQLContext) => {
+      const taxon = await context.prisma.taxon.findUnique({
+        where: { id: parent.id },
+        include: { products: true }
+      });
+      return taxon?.products || [];
+    }
+  }
 };
