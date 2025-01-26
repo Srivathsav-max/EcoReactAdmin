@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { AuthCard } from "@/components/auth/auth-card";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
@@ -10,27 +9,26 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { EyeIcon, EyeOffIcon, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useSignIn, useValidateEmail } from "@/lib/graphql/hooks/useAuth";
 
 const SignInPage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState({
-    email: '',
-    password: ''
-  });
-  const [isEmailValid, setIsEmailValid] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
-  const [isEmailChecking, setIsEmailChecking] = useState(false);
-  const [isEmailExists, setIsEmailExists] = useState(false);
+  
+  const [fieldErrors, setFieldErrors] = useState({
+    email: '',
+    password: ''
+  });
 
-  const getRedirectQuery = () => {
-    return redirectUrl !== "/" ? `?redirect=${redirectUrl}` : "";
-  };
+  const { checkEmail, loading: emailChecking } = useValidateEmail();
+  const { handleSignIn, loading: signingIn } = useSignIn();
+  const [isEmailValid, setIsEmailValid] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
 
   const redirectUrl = searchParams?.get("redirect") || "/";
 
@@ -40,112 +38,85 @@ const SignInPage = () => {
     return emailRegex.test(email);
   };
 
-  // Debounced email validation
-  useEffect(() => {
-    const validateEmailWithServer = async (email: string) => {
-      if (!validateEmail(email)) {
-        setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
-        setIsEmailValid(false);
-        setIsEmailExists(false);
-        return;
+  // Handle email validation
+  const handleEmailValidation = async (email: string) => {
+    // Clear previous validation states
+    setEmailExists(false);
+    setIsEmailValid(false);
+    setFieldErrors(prev => ({ ...prev, email: '' }));
+
+    // Basic format validation
+    if (!email) {
+      setFieldErrors(prev => ({ ...prev, email: 'Email is required' }));
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
+      return;
+    }
+
+    // Check email existence
+    const result = await checkEmail(email);
+    if (result.error) {
+      setFieldErrors(prev => ({ ...prev, email: result.error }));
+    } else {
+      setIsEmailValid(true);
+      setEmailExists(result.exists);
+      if (result.exists) {
+        // Clear any email errors if the email exists
+        setFieldErrors(prev => ({ ...prev, email: '' }));
       }
+    }
+  };
 
-      try {
-        setIsEmailChecking(true);
-        const response = await fetch('/api/auth/validate-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-
-        const data = await response.json();
-        
-        if (data.exists) {
-          setFieldErrors(prev => ({ ...prev, email: '' }));
-          setIsEmailValid(true);
-          setIsEmailExists(true);
-        } else {
-          setFieldErrors(prev => ({ ...prev, email: 'Email not found' }));
-          setIsEmailValid(false);
-          setIsEmailExists(false);
-        }
-      } catch (error) {
-        setFieldErrors(prev => ({ ...prev, email: 'Error validating email' }));
-        setIsEmailValid(false);
-        setIsEmailExists(false);
-      } finally {
-        setIsEmailChecking(false);
-      }
-    };
-
+  // Handle email input change
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const email = e.target.value;
+    setFormData(prev => ({ ...prev, email }));
+    
+    // Clear password when email changes
+    setFormData(prev => ({ ...prev, password: '' }));
+    setFieldErrors(prev => ({ ...prev, password: '' }));
+    
+    // Debounce email validation
     const timer = setTimeout(() => {
-      if (formData.email && validateEmail(formData.email)) {
-        validateEmailWithServer(formData.email);
+      if (email) {
+        handleEmailValidation(email);
       }
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [formData.email]);
-
-  // Handle email change
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const email = e.target.value;
-    setFormData({ ...formData, email });
-    
-    if (!email) {
-      setFieldErrors(prev => ({ ...prev, email: 'Email is required' }));
-      setIsEmailValid(false);
-      setIsEmailExists(false);
-    }
   };
 
   // Handle password change
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const password = e.target.value;
-    setFormData({ ...formData, password });
-    
-    if (!password) {
-      setFieldErrors(prev => ({ ...prev, password: 'Password is required' }));
-    } else if (password.length < 6) {
-      setFieldErrors(prev => ({ ...prev, password: 'Password must be at least 6 characters' }));
-    } else {
-      setFieldErrors(prev => ({ ...prev, password: '' }));
-    }
+    setFormData(prev => ({ ...prev, password }));
+    setFieldErrors(prev => ({ 
+      ...prev, 
+      password: password ? '' : 'Password is required' 
+    }));
   };
 
+  // Handle form submission
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isEmailValid || !formData.password) {
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      const response = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-        credentials: 'include',
-      });
+    if (!emailExists || !formData.password) return;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          setFieldErrors(prev => ({ ...prev, password: 'Invalid password' }));
-        } else if (data.error) {
-          toast.error(data.error);
-        }
-        return;
-      }
-
-      toast.success('Welcome back!');
+    const result = await handleSignIn(formData.email, formData.password);
+    if (result?.success) {
+      toast.success('Signed in successfully!');
       router.push(redirectUrl);
       router.refresh();
-    } catch (error: any) {
-      toast.error('An error occurred during sign in');
-    } finally {
-      setLoading(false);
+    } else if (result?.error) {
+      setFieldErrors(prev => ({
+        ...prev,
+        password: result.error === 'Invalid password' ? 'Invalid password' : ''
+      }));
+      if (result.error !== 'Invalid password') {
+        toast.error(result.error);
+      }
     }
   };
 
@@ -169,13 +140,14 @@ const SignInPage = () => {
                   placeholder="name@example.com"
                   value={formData.email}
                   onChange={handleEmailChange}
-                  required
                   className={`w-full ${
                     fieldErrors.email ? 'border-red-500' : 
-                    isEmailExists ? 'border-green-500' : ''
+                    emailExists ? 'border-green-500' : ''
                   }`}
+                  disabled={signingIn}
+                  required
                 />
-                {isEmailChecking && (
+                {emailChecking && (
                   <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-500" />
                 )}
               </div>
@@ -184,11 +156,9 @@ const SignInPage = () => {
               )}
             </div>
 
-            {isEmailExists && (
+            {emailExists && (
               <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="password">Password</Label>
-                </div>
+                <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -196,16 +166,17 @@ const SignInPage = () => {
                     placeholder="Enter your password"
                     value={formData.password}
                     onChange={handlePasswordChange}
-                    required
                     className={`w-full pr-10 ${
-                      fieldErrors.password ? 'border-red-500' : 
-                      formData.password.length >= 6 ? 'border-green-500' : ''
+                      fieldErrors.password ? 'border-red-500' : ''
                     }`}
+                    disabled={signingIn}
+                    required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2"
+                    disabled={signingIn}
                   >
                     {showPassword ? (
                       <EyeOffIcon className="h-4 w-4 text-gray-500" />
@@ -219,37 +190,42 @@ const SignInPage = () => {
                 )}
               </div>
             )}
-            <Button
-              type="submit"
-              disabled={loading || !isEmailValid || !formData.password}
-              className="w-full"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  <span>Signing in...</span>
-                </>
-              ) : (
-                'Sign in'
-              )}
-            </Button>
+
+            {emailExists && (
+              <Button
+                type="submit"
+                disabled={signingIn || !formData.password}
+                className="w-full"
+              >
+                {signingIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  'Sign in'
+                )}
+              </Button>
+            )}
           </form>
         </CardContent>
         <CardFooter>
           <div className="space-y-2 w-full">
-            <div className="flex justify-center">
-              <Link
-                href={`/forget-password${getRedirectQuery()}`}
-                className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
-              >
-                Forgot password?
-              </Link>
-            </div>
+            {emailExists && (
+              <div className="flex justify-center">
+                <Link
+                  href={`/forget-password?email=${encodeURIComponent(formData.email)}`}
+                  className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            )}
             <div className="flex justify-center">
               <p className="text-sm text-gray-600">
                 Don&apos;t have an account?{' '}
                 <Link
-                  href={`/sign-up${getRedirectQuery()}`}
+                  href="/sign-up"
                   className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
                 >
                   Sign up
