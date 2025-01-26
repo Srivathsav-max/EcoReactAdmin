@@ -1,0 +1,57 @@
+type VariantOptionValue {
+  id: String!
+  variantId: String!
+  variant: Variant!
+  optionValueId: String!
+  optionValue: OptionValue!
+  position: Int!
+}
+
+type OptionValue {
+  id: String!
+  name: String!
+  presentation: String!
+  position: Int!
+  optionType: OptionType!
+  optionTypeId: String!
+  variants: [VariantOptionValue!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type OptionType {
+  id: String!
+  storeId: String!
+  productId: String!
+  name: String!
+  presentation: String!
+  position: Int!
+  product: Product!
+  optionValues: [OptionValue!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input OptionValueCreateInput {
+  name: String!
+  presentation: String
+  position: Int
+  optionTypeId: String!
+}
+
+input OptionValueUpdateInput {
+  name: String
+  presentation: String
+  position: Int
+}
+
+type Query {
+  optionValues(storeId: String!, optionTypeId: String): [OptionValue!]!
+  optionValue(id: String!, storeId: String!): OptionValue
+}
+
+type Mutation {
+  createOptionValue(storeId: String!, input: OptionValueCreateInput!): OptionValue!
+  updateOptionValue(id: String!, storeId: String!, input: OptionValueUpdateInput!): OptionValue!
+  deleteOptionValue(id: String!, storeId: String!): Boolean!
+}

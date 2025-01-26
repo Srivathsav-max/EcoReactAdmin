@@ -1,5 +1,5 @@
 type Attribute {
-  id: ID!
+  id: String!
   name: String!
   code: String!
   type: AttributeType!
@@ -14,7 +14,7 @@ type Attribute {
 }
 
 type AttributeValue {
-  id: ID!
+  id: String!
   value: String!
   position: Int!
   attributeId: String!
@@ -26,7 +26,7 @@ type AttributeValue {
 }
 
 type OptionType {
-  id: ID!
+  id: String!
   storeId: String!
   productId: String!
   name: String!
@@ -40,7 +40,7 @@ type OptionType {
 }
 
 type OptionValue {
-  id: ID!
+  id: String!
   name: String!
   presentation: String!
   position: Int!
@@ -52,7 +52,7 @@ type OptionValue {
 }
 
 type VariantOptionValue {
-  id: ID!
+  id: String!
   variantId: String!
   variant: Variant!
   optionValueId: String!

@@ -35,3 +35,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 Screenshot 2025-01-19 at 8.07.09 PM.png
+
+# Sentry Config File
+.env.sentry-build-plugin

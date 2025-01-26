@@ -2,16 +2,16 @@
 
 import * as z from "zod";
 import {
-  Product,
   Brand,
   Color,
   Size,
   NavigationTaxonomy,
-  Variant
 } from "@/types/models";
+import { ProductWithMetadata } from "./types";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { useProductForm } from "@/hooks/use-product-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-hot-toast";
 import { Trash } from "lucide-react";
@@ -64,24 +64,6 @@ const formSchema = z.object({
     position: z.number(),
   })).default([]),
 });
-
-type ProductWithMetadata = Product & {
-  brandId?: string;
-  colorId?: string;
-  sizeId?: string;
-  sku?: string;
-  barcode?: string;
-  tags?: string[];
-  taxRate: number;
-  weight?: number;
-  height?: number;
-  width?: number;
-  depth?: number;
-  minimumQuantity: number;
-  maximumQuantity?: number;
-  variants: Array<Variant & { size: Size | null; color: Color | null }>;
-  optionTypes?: Array<{ name: string; presentation: string; position: number }>;
-};
 
 export const ProductForm: React.FC<{
   initialData: ProductWithMetadata | null;
@@ -172,46 +154,17 @@ export const ProductForm: React.FC<{
     defaultValues,
   });
 
+  const { onSubmit: handleSubmit, onDelete: handleDelete } = useProductForm(
+    params.storeId as string,
+    params.productId as string
+  );
+
   const onSubmit = async (data: ProductFormType) => {
     try {
       setIsSaving(true);
-      
-      const formattedData = {
-        ...data,
-        price: parseFloat(data.price.toString()), // Keep original price as is
-        taxRate: data.taxRate ? Number((data.taxRate / 100).toFixed(4)) : undefined, // Convert from percentage with precision
-        images: data.images.map(img => ({
-          url: img.url,
-          fileId: img.fileId,
-        })),
-      };
-
-      const response = initialData
-        ? await fetch(`/api/${params.storeId}/products/${params.productId}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formattedData)
-          })
-        : await fetch(`/api/${params.storeId}/products`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formattedData)
-          });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to save product');
-      }
-
-      await router.push(`/${params.storeId}/products`);
-      router.refresh();
-      toast.success(toastMessage);
+      await handleSubmit(data);
     } catch (error) {
-      toast.error("Something went wrong.");
+      // Error handling is done in the hook
     } finally {
       setIsSaving(false);
     }
@@ -220,20 +173,9 @@ export const ProductForm: React.FC<{
   const onDelete = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/${params.storeId}/products/${params.productId}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to delete product');
-      }
-
-      await router.push(`/${params.storeId}/products`);
-      router.refresh();
-      toast.success("Product deleted successfully");
+      await handleDelete();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "An unexpected error occurred while deleting the product");
+      // Error handling is done in the hook
     } finally {
       setLoading(false);
       setOpen(false);

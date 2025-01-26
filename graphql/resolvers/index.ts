@@ -16,7 +16,6 @@ import { optionValueResolvers } from './option-value';
 import { reviewResolvers } from './review';
 import { storeResolvers } from './store';
 import { customerResolvers } from './customer';
-import { checkoutResolvers } from './checkout';
 import { orderResolvers } from './order';
 import { GraphQLScalarType, Kind } from 'graphql';
 import { Prisma } from '@prisma/client';
@@ -120,7 +119,6 @@ export const resolvers = {
     ...reviewResolvers.Query,
     ...storeResolvers.Query,
     ...customerResolvers.Query,
-    ...checkoutResolvers.Query,
     ...orderResolvers.Query,
   },
 
@@ -143,7 +141,6 @@ export const resolvers = {
     ...reviewResolvers.Mutation,
     ...storeResolvers.Mutation,
     ...customerResolvers.Mutation,
-    ...checkoutResolvers.Mutation,
     ...orderResolvers.Mutation,
   },
 

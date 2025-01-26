@@ -1,5 +1,5 @@
 type Taxonomy {
-  id: ID!
+  id: String!
   name: String!
   description: String
   storeId: String!
@@ -15,7 +15,7 @@ type TaxonomyCount {
 }
 
 type Taxon {
-  id: ID!
+  id: String!
   name: String!
   description: String
   position: Int!
@@ -35,7 +35,7 @@ type Taxon {
 }
 
 type Billboard {
-  id: ID!
+  id: String!
   storeId: String!
   store: Store!
   label: String!

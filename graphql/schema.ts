@@ -9,6 +9,7 @@ import { resolvers } from './resolvers';
 const loadTypeDefinitions = () => {
   const types = [
     'scalar',
+    'auth',      // Added auth schema
     'store',
     'product',
     'order',
@@ -18,6 +19,8 @@ const loadTypeDefinitions = () => {
     'inventory',
     'brand-supplier',
     'layout-user',
+    'reviews',
+    'option-values', // Added option values schema
   ];
 
   return types.map(type => {

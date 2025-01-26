@@ -1,5 +1,5 @@
 type HomeLayout {
-  id: ID!
+  id: String!
   storeId: String!
   store: Store!
   isActive: Boolean!
@@ -10,7 +10,7 @@ type HomeLayout {
 }
 
 type LayoutComponent {
-  id: ID!
+  id: String!
   layoutId: String!
   layout: HomeLayout!
   type: LayoutComponentType!
@@ -22,7 +22,7 @@ type LayoutComponent {
 }
 
 type User {
-  id: ID!
+  id: String!
   name: String
   email: String!
   password: String!

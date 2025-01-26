@@ -319,3 +319,23 @@ export interface LayoutComponent {
   position: number;
   isVisible: boolean;
 }
+
+export interface Store {
+  id: string;
+  name: string;
+  currency?: string;
+  locale?: string;
+}
+
+export interface FormProduct extends Product {
+  brandId?: string;
+  colorId?: string;
+  sizeId?: string;
+  taxRate: number;
+  minimumQuantity: number;
+  maximumQuantity?: number;
+  variants: Array<Variant & {
+    size: Size | null;
+    color: Color | null;
+  }>;
+}

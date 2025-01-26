@@ -1,5 +1,5 @@
 type Store {
-  id: ID!
+  id: String!
   name: String!
   userId: String!
   currency: String
@@ -36,14 +36,14 @@ type StoreCount {
 
 type Query {
   stores: [Store!]!
-  store(id: ID!): Store
+  store(id: String!): Store
   storeByDomain(domain: String!): Store
 }
 
 type Mutation {
   createStore(input: StoreCreateInput!): Store!
-  updateStore(id: ID!, input: StoreUpdateInput!): Store!
-  deleteStore(id: ID!): Boolean!
+  updateStore(id: String!, input: StoreUpdateInput!): Store!
+  deleteStore(id: String!): Boolean!
 }
 
 input StoreCreateInput {

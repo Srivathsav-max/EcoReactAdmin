@@ -28,10 +28,10 @@ export const authResolvers = {
   Mutation: {
     adminSignIn: async (
       _parent: unknown,
-      args: { email: string; password: string },
+      args: { input: { email: string; password: string } },
       context: GraphQLContext
     ) => {
-      const { email, password } = args;
+      const { email, password } = args.input;
 
       const user = await context.prisma.user.findUnique({
         where: { email }
@@ -77,10 +77,10 @@ export const authResolvers = {
 
     customerSignIn: async (
       _parent: unknown,
-      args: { email: string; password: string; storeId: string },
+      args: { input: { email: string; password: string; storeId: string } },
       context: GraphQLContext
     ) => {
-      const { email, password, storeId } = args;
+      const { email, password, storeId } = args.input;
 
       const customer = await context.prisma.customer.findFirst({
         where: {

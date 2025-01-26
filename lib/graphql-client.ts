@@ -35,7 +35,7 @@ async function fetchGraphQL(query: string, options: RequestOptions = {}) {
 
 // Product queries
 export const GET_PRODUCT_PAGE_DATA = `
-  query GetProductPageData($storeId: ID!, $productId: ID) {
+  query GetProductPageData($storeId: String!, $productId: String) {
     brands(storeId: $storeId) {
       id
       name
@@ -114,9 +114,9 @@ export const GET_PRODUCT_PAGE_DATA = `
       taxons {
         id
         name
-        permalink
         description
         position
+        permalink
         billboard {
           id
           label
@@ -144,14 +144,17 @@ export const GET_PRODUCT_PAGE_DATA = `
         }
         stockItems {
           id
-          quantity
+          count
         }
         optionValues {
-          id
-          name
-          presentation
-          position
-        }
+         id
+         optionValue {
+           id
+           name
+           presentation
+           position
+         }
+       }
         images {
           url
           fileId
@@ -162,7 +165,7 @@ export const GET_PRODUCT_PAGE_DATA = `
 `;
 
 export const GET_PRODUCTS = `
-  query GetProducts($storeId: ID!) {
+  query GetProducts($storeId: String!) {
     products(storeId: $storeId) {
       id
       name
@@ -172,7 +175,7 @@ export const GET_PRODUCTS = `
       isVisible
       variants {
         stockItems {
-          quantity
+          count
         }
       }
       taxons {
@@ -189,7 +192,7 @@ export const GET_PRODUCTS = `
 
 // Product mutations
 export const CREATE_PRODUCT = `
-  mutation CreateProduct($storeId: ID!, $input: ProductCreateInput!) {
+  mutation CreateProduct($storeId: String!, $input: ProductCreateInput!) {
     createProduct(storeId: $storeId, input: $input) {
       id
       name
@@ -233,7 +236,7 @@ export const CREATE_PRODUCT = `
         sku
         price
         stockItems {
-          quantity
+          count
         }
       }
     }
@@ -241,7 +244,7 @@ export const CREATE_PRODUCT = `
 `;
 
 export const UPDATE_PRODUCT = `
-  mutation UpdateProduct($id: ID!, $storeId: ID!, $input: ProductUpdateInput!) {
+  mutation UpdateProduct($id: String!, $storeId: String!, $input: ProductUpdateInput!) {
     updateProduct(id: $id, storeId: $storeId, input: $input) {
       id
       name
@@ -285,7 +288,7 @@ export const UPDATE_PRODUCT = `
         sku
         price
         stockItems {
-          quantity
+          count
         }
       }
     }
@@ -293,8 +296,138 @@ export const UPDATE_PRODUCT = `
 `;
 
 export const DELETE_PRODUCT = `
-  mutation DeleteProduct($id: ID!, $storeId: ID!) {
+  mutation DeleteProduct($id: String!, $storeId: String!) {
     deleteProduct(id: $id, storeId: $storeId)
+  }
+`;
+
+export const GET_PRODUCT_DETAILS = `
+  query GetProductDetails($storeId: String!, $productId: String!, $includeProduct: Boolean!) {
+    brands(storeId: $storeId) {
+      id
+      name
+    }
+    colors(storeId: $storeId) {
+      id
+      name
+      value
+    }
+    sizes(storeId: $storeId) {
+      id
+      name
+      value
+    }
+    taxonomies(storeId: $storeId) {
+      id
+      name
+      taxons {
+        id
+        name
+        description
+        position
+        permalink
+        billboard {
+          id
+          label
+          imageUrl
+        }
+      }
+    }
+    store(id: $storeId) {
+      id
+      name
+      currency
+      locale
+    }
+    product(id: $productId, storeId: $storeId) @include(if: $includeProduct) {
+      id
+      name
+      description
+      slug
+      price
+      status
+      isVisible
+      hasVariants
+      sku
+      barcode
+      tags
+      taxRate
+      weight
+      height
+      width
+      depth
+      minimumQuantity
+      maximumQuantity
+      brand {
+        id
+        name
+      }
+      images {
+        url
+        fileId
+      }
+      optionTypes {
+        id
+        name
+        presentation
+        position
+        optionValues {
+          id
+          name
+          presentation
+          position
+        }
+      }
+      taxons {
+        id
+        name
+        description
+        position
+        permalink
+        billboard {
+          id
+          label
+          imageUrl
+        }
+      }
+      variants {
+        id
+        name
+        sku
+        price
+        compareAtPrice
+        position
+        isVisible
+        isDefault
+        size {
+          id
+          name
+          value
+        }
+        color {
+          id
+          name
+          value
+        }
+        stockItems {
+          id
+          count
+        }
+        optionValues {
+         id
+         optionValue {
+           id
+           name
+           presentation
+           position
+         }
+       }
+        images {
+          url
+          fileId
+        }
+      }
+    }
   }
 `;
 

@@ -1,5 +1,5 @@
 type Customer {
-  id: ID!
+  id: String!
   storeId: String!
   store: Store!
   name: String!
@@ -14,7 +14,7 @@ type Customer {
 }
 
 type Address {
-  id: ID!
+  id: String!
   customerId: String!
   customer: Customer!
   type: String!
@@ -24,20 +24,6 @@ type Address {
   postalCode: String!
   country: String!
   isDefault: Boolean!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
-type ProductReview {
-  id: ID!
-  productId: String!
-  product: Product!
-  customerId: String!
-  customer: Customer!
-  rating: Int!
-  title: String
-  content: String!
-  status: ReviewStatus!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -80,27 +66,6 @@ input AddressUpdateInput {
   postalCode: String
   country: String
   isDefault: Boolean
-}
-
-input ProductReviewCreateInput {
-  productId: String!
-  customerId: String!
-  rating: Int!
-  title: String
-  content: String!
-}
-
-input ProductReviewUpdateInput {
-  rating: Int
-  title: String
-  content: String
-  status: ReviewStatus
-}
-
-enum ReviewStatus {
-  PENDING
-  APPROVED
-  REJECTED
 }
 
 type Query {

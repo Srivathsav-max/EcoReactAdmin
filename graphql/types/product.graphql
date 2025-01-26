@@ -1,5 +1,5 @@
 type Product {
-  id: ID!
+  id: String!
   storeId: String!
   store: Store!
   name: String!
@@ -47,7 +47,7 @@ type Product {
 }
 
 type ProductProperty {
-  id: ID!
+  id: String!
   name: String!
   value: String!
   productId: String!
@@ -55,22 +55,8 @@ type ProductProperty {
   position: Int!
 }
 
-type ProductReview {
-  id: ID!
-  productId: String!
-  product: Product!
-  customerId: String!
-  customer: Customer!
-  rating: Int!
-  title: String
-  content: String
-  status: String!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
 type Image {
-  id: ID!
+  id: String!
   url: String!
   fileId: String!
   productId: String
@@ -84,7 +70,7 @@ type Image {
 }
 
 type VariantOptionValue {
-  id: ID!
+  id: String!
   variantId: String!
   variant: Variant!
   optionValueId: String!
@@ -93,7 +79,7 @@ type VariantOptionValue {
 }
 
 type Variant {
-  id: ID!
+  id: String!
   name: String!
   productId: String!
   product: Product!

@@ -4,8 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProductForm } from "./product-form"
 import ImageUpload from "@/components/ui/image-upload"
 import { useState } from "react"
-import { Product, Brand, Image, Color, Size, NavigationTaxonomy, Taxon } from "@/types/models"
+import { Brand, Image, Color, Size, NavigationTaxonomy } from "@/types/models"
 import { type Property } from "./properties-manager"
+import { ProductWithMetadata, StockManagerVariant } from "./types"
 import { ShippingManager } from "./shipping-manager"
 import { SeoManager } from "./seo-manager"
 import { StockManager } from "./stock-manager"
@@ -14,31 +15,10 @@ import { PropertiesManager } from "./properties-manager"
 interface ProductTabsProps {
   stockItems?: any[];
   properties?: Property[];
-  initialData: Product & {
-    variants: any[];
-    brandId?: string;
-    colorId?: string;
-    sizeId?: string;
-    sku?: string;
-    barcode?: string;
-    tags: string[];
-    taxRate?: number;
-    weight?: number;
-    height?: number;
-    width?: number;
-    depth?: number;
-    minimumQuantity: number;
-    maximumQuantity?: number;
-    properties?: Property[];
-    shippingCategory?: string | null;
-    metaTitle?: string | null;
-    metaDescription?: string | null;
-    metaKeywords?: string | null;
-  } | null;
+  initialData: ProductWithMetadata | null;
   colors: Color[];
   sizes: Size[];
   taxonomies: NavigationTaxonomy[];
-  initialTaxons?: Taxon[];
   storeCurrency: string;
   storeLocale: string;
   brands?: Brand[];
@@ -49,7 +29,6 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({
   colors,
   sizes,
   taxonomies,
-  initialTaxons,
   storeCurrency,
   storeLocale,
   brands = [] // Provide empty array as default
@@ -74,7 +53,6 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({
           colors={colors}
           sizes={sizes}
           taxonomies={taxonomies}
-          initialTaxons={initialTaxons}
           storeCurrency={storeCurrency}
           storeLocale={storeLocale}
           brands={brands}

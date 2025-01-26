@@ -14,8 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { AlertModal } from "@/components/modals/alert-modal";
-
-import { ProductColumn } from "./columns";
+import { ProductColumn } from "@/hooks/use-products";
+import { graphqlClient, UPDATE_PRODUCT, DELETE_PRODUCT } from "@/lib/graphql-client";
 
 interface CellActionProps {
   data: ProductColumn;
@@ -38,24 +38,19 @@ export const CellAction: React.FC<CellActionProps> = ({
     try {
       setLoading(true);
       
-      const response = await fetch(`/api/${params.storeId}/products/${data.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      await graphqlClient.request(UPDATE_PRODUCT, {
+        id: data.id,
+        storeId: params.storeId,
+        input: {
           isVisible: data.isArchived // If it's archived, we make it visible, and vice versa
-        }),
+        }
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to update product');
-      }
 
       router.refresh();
       toast.success(data.isArchived ? "Product restored." : "Product archived.");
     } catch (error) {
       toast.error("Something went wrong");
+      console.error('Error updating product:', error);
     } finally {
       setLoading(false);
     }
@@ -65,18 +60,16 @@ export const CellAction: React.FC<CellActionProps> = ({
     try {
       setLoading(true);
       
-      const response = await fetch(`/api/${params.storeId}/products/${data.id}`, {
-        method: 'DELETE'
+      await graphqlClient.request(DELETE_PRODUCT, {
+        id: data.id,
+        storeId: params.storeId
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete product');
-      }
 
       router.refresh();
       toast.success("Product deleted.");
     } catch (error) {
       toast.error("Something went wrong");
+      console.error('Error deleting product:', error);
     } finally {
       setLoading(false);
       setOpen(false);

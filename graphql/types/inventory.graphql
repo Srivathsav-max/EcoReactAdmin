@@ -1,5 +1,5 @@
 type StockItem {
-  id: ID!
+  id: String!
   variantId: String!
   variant: Variant!
   storeId: String!
@@ -14,7 +14,7 @@ type StockItem {
 }
 
 type StockMovement {
-  id: ID!
+  id: String!
   variantId: String!
   variant: Variant!
   stockItemId: String!
@@ -27,7 +27,7 @@ type StockMovement {
 }
 
 type Size {
-  id: ID!
+  id: String!
   storeId: String!
   store: Store!
   name: String!
@@ -38,7 +38,7 @@ type Size {
 }
 
 type Color {
-  id: ID!
+  id: String!
   storeId: String!
   store: Store!
   name: String!

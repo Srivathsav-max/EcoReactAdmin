@@ -1,5 +1,5 @@
 type Brand {
-  id: ID!
+  id: String!
   storeId: String!
   store: Store!
   name: String!
@@ -14,7 +14,7 @@ type Brand {
 }
 
 type Supplier {
-  id: ID!
+  id: String!
   storeId: String!
   store: Store!
   name: String!

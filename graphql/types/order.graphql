@@ -1,5 +1,5 @@
 type Order {
-  id: ID!
+  id: String!
   storeId: String!
   store: Store!
   customerId: String
@@ -15,7 +15,7 @@ type Order {
 }
 
 type OrderItem {
-  id: ID!
+  id: String!
   orderId: String!
   order: Order!
   variantId: String!
