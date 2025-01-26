@@ -1,59 +1,170 @@
-import { compare, hash } from 'bcryptjs';
-import { verify } from 'jsonwebtoken';
-import prismadb from '@/lib/prismadb';
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import prismadb from "./prismadb";
 
-const SALT_ROUNDS = 12;
-
-export async function hashPassword(password: string) {
-  return await hash(password, SALT_ROUNDS);
+export interface AdminSession {
+  userId: string;
+  email: string;
+  role: 'admin';
 }
 
-export async function verifyPassword(plainPassword: string, hashedPassword: string) {
+export interface CustomerSession {
+  customerId: string;
+  email: string;
+  storeId: string;
+  role: 'customer';
+}
+
+type Session = AdminSession | CustomerSession;
+
+// Main session getters
+export async function getAdminSession(): Promise<AdminSession | null> {
   try {
-    const isValid = await compare(plainPassword, hashedPassword);
-    return isValid;
-  } catch (error) {
-    return false;
-  }
-}
+    const cookieStore = await cookies();
+    const token = cookieStore.get('admin_token')?.value;
 
-export async function createUser(email: string, password: string) {
-  const hashedPassword = await hashPassword(password);
-  
-  return await prismadb.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-    },
-  });
-}
-
-export async function getUserByEmail(email: string) {
-  return await prismadb.user.findUnique({
-    where: { email },
-  });
-}
-
-export async function verifyAuth(token: string) {
-  try {
     if (!token) {
       return null;
     }
 
-    // Verify the token
-    const decoded = verify(token, process.env.JWT_SECRET!);
-    
-    // Get user from database
-    const user = await prismadb.user.findUnique({
-      where: { id: decoded.sub as string },
-    });
-
-    if (!user) {
-      return null;
-    }
-
-    return { user };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as Session;
+    return isAdmin(decoded) ? decoded : null;
   } catch (error) {
+    console.error('[ADMIN_AUTH_ERROR]', error);
     return null;
   }
 }
+
+export async function getCustomerSession(): Promise<CustomerSession | null> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('customer_token')?.value;
+
+    if (!token) {
+      return null;
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as Session;
+    return isCustomer(decoded) ? decoded : null;
+  } catch (error) {
+    console.error('[CUSTOMER_AUTH_ERROR]', error);
+    return null;
+  }
+}
+
+// Auth verification
+export async function verifyAuth(): Promise<Session | null> {
+  // Try to get admin session first
+  const adminSession = await getAdminSession();
+  if (adminSession) {
+    return adminSession;
+  }
+
+  // If no admin session, try customer session
+  const customerSession = await getCustomerSession();
+  return customerSession;
+}
+
+// User management
+export async function getUserByEmail(email: string) {
+  return prismadb.user.findUnique({
+    where: { email }
+  });
+}
+
+export async function createUser(email: string, password: string) {
+  const hashedPassword = await bcrypt.hash(password, 10);
+  
+  return prismadb.user.create({
+    data: {
+      email,
+      password: hashedPassword
+    }
+  });
+}
+
+// Customer management
+export async function getCustomerByEmail(email: string, storeId: string) {
+  return prismadb.customer.findFirst({
+    where: {
+      email,
+      storeId
+    }
+  });
+}
+
+export async function createCustomer(
+  email: string,
+  password: string,
+  storeId: string,
+  name: string
+) {
+  const hashedPassword = await bcrypt.hash(password, 10);
+  
+  return prismadb.customer.create({
+    data: {
+      email,
+      password: hashedPassword,
+      storeId,
+      name
+    }
+  });
+}
+
+// Password utilities
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
+
+export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  return bcrypt.compare(password, hashedPassword);
+}
+
+// Token generation
+export function generateAdminToken(user: { id: string; email: string }) {
+  return jwt.sign(
+    { userId: user.id, email: user.email, role: 'admin' },
+    process.env.JWT_SECRET!,
+    { expiresIn: '7d' }
+  );
+}
+
+export function generateCustomerToken(customer: { id: string; email: string; storeId: string }) {
+  return jwt.sign(
+    { 
+      customerId: customer.id, 
+      email: customer.email, 
+      storeId: customer.storeId,
+      role: 'customer'
+    },
+    process.env.JWT_SECRET!,
+    { expiresIn: '30d' }
+  );
+}
+
+// Type guards
+export function isAdmin(session: Session | null): session is AdminSession {
+  return session?.role === 'admin';
+}
+
+export function isCustomer(session: Session | null): session is CustomerSession {
+  return session?.role === 'customer';
+}
+
+// Cookie management
+export function getAuthCookie(token: string, role: 'admin' | 'customer') {
+  return {
+    name: role === 'admin' ? 'admin_token' : 'customer_token',
+    value: token,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    expires: new Date(Date.now() + (role === 'admin' ? 7 : 30) * 24 * 60 * 60 * 1000)
+  };
+}
+
+export const getSession = async () => {
+  return getAdminSession();
+};

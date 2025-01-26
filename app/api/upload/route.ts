@@ -1,44 +1,102 @@
-// app/api/upload/route.ts
 import { NextResponse } from 'next/server';
-import { serverStorage, bucketId, Permission, Role, ID, getFilePreviewUrl, getMaskedImageUrl } from '@/lib/appwrite-config';
+import { storage, ID, getMaskedImageUrl } from '@/lib/appwrite-config';
+import { getAdminSession } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic'; 
+export const maxDuration = 30;
+export const runtime = 'nodejs'; 
+
 
 export async function POST(req: Request) {
   try {
-    // Parse incoming form data
+    // Verify admin authentication
+    const session = await getAdminSession();
+    
+    if (!session) {
+      return NextResponse.json({
+        success: false,
+        message: 'Unauthorized access. Admin authentication required.'
+      }, { status: 401 });
+    }
+
+    // Validate Content-Type
+    if (!req.headers.get('content-type')?.includes('multipart/form-data')) {
+      return NextResponse.json({
+        success: false,
+        message: 'Content type must be multipart/form-data'
+      }, { status: 400 });
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
 
     if (!file) {
-      return NextResponse.json(
-        { success: false, error: 'No file uploaded' },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        success: false,
+        message: 'No file provided'
+      }, { status: 400 });
     }
 
-    // Create a unique file ID
-    const fileId = ID.unique();
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return NextResponse.json({
+        success: false,
+        message: 'File must be an image'
+      }, { status: 400 });
+    }
 
-    // Upload file with public read permissions
-    await serverStorage.createFile(
-      bucketId,
-      fileId,
-      file,
-      [Permission.read(Role.any())] // This ensures the file can be viewed by anyone
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({
+        success: false,
+        message: 'File size must be less than 5MB'
+      }, { status: 400 });
+    }
+
+    if (!process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID) {
+      return NextResponse.json({
+        success: false,
+        message: 'Storage not configured'
+      }, { status: 500 });
+    }
+
+    // Upload to Appwrite
+    const result = await storage.createFile(
+      process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID,
+      ID.unique(),
+      file
     );
 
-    // Return masked URL instead of direct Appwrite URL
-    const maskedUrl = getMaskedImageUrl(fileId);
+    // Get masked URL for the uploaded file
+    const maskedUrl = getMaskedImageUrl(result.$id);
 
     return NextResponse.json({
       success: true,
-      url: maskedUrl,
-      fileId: fileId, // Add fileId to response
+      fileId: result.$id,
+      url: maskedUrl
     });
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to upload file' },
-      { status: 500 }
-    );
+
+  } catch (error: any) {
+    console.error('[UPLOAD_ERROR]', error);
+
+    // Return meaningful error messages
+    if (error?.code === 401 || error?.code === 403) {
+      return NextResponse.json({
+        success: false,
+        message: 'Unauthorized access'
+      }, { status: 401 });
+    }
+
+    if (error?.code === 413) {
+      return NextResponse.json({
+        success: false,
+        message: 'File size too large'
+      }, { status: 413 });
+    }
+
+    return NextResponse.json({
+      success: false,
+      message: 'Internal server error'
+    }, { status: 500 });
   }
 }

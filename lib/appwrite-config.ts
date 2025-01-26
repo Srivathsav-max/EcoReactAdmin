@@ -1,44 +1,54 @@
-// lib/appwrite-server-config.ts
+import { Client, Account, Storage, ID, Permission, Role } from 'appwrite';
 
-import { Client, Storage, Permission, Role, ID } from 'node-appwrite';
+// Environment variable validation
+if (!process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID) {
+  throw new Error('Missing APPWRITE_PROJECT_ID');
+}
 
-const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
-const appwriteProjectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
-const appwriteAPIKey = process.env.APPWRITE_API_KEY!;
-const bucketId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID!;
+if (!process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID) {
+  throw new Error('Missing APPWRITE_BUCKET_ID');
+}
 
-// Create server-side client
-const serverClient = new Client()
-  .setEndpoint(appwriteEndpoint)
-  .setProject(appwriteProjectId)
-  .setKey(appwriteAPIKey);
+const client = new Client()
+  .setEndpoint('https://cloud.appwrite.io/v1')
+  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
 
-const serverStorage = new Storage(serverClient);
+export const account = new Account(client);
+export const storage = new Storage(client);
+export const serverStorage = storage;
+export const bucketId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID!;
+export { ID, Permission, Role };
 
-// Update the getFilePreviewUrl function
-const getFilePreviewUrl = (fileId: string) => {
-  return `${appwriteEndpoint}/storage/buckets/${bucketId}/files/${fileId}/preview?project=${appwriteProjectId}`;
-};
-
-// Add this new function to extract fileId from URL
-const getFileIdFromUrl = (url: string) => {
-  const matches = url.match(/\/files\/([^\/]+)\/(?:preview|view)/);
-  return matches ? matches[1] : null;
-};
-
-// Add this function to generate masked URLs
-const getMaskedImageUrl = (fileId: string) => {
+// Image URL masking helper
+export const getMaskedImageUrl = (fileId: string) => {
   return `/api/image-proxy/${fileId}`;
 };
 
-export { 
-  serverStorage, 
-  bucketId, 
-  Permission, 
-  Role, 
-  ID,
-  appwriteEndpoint,
-  getFilePreviewUrl,  // Add this export
-  getFileIdFromUrl,
-  getMaskedImageUrl
+// File preview helpers
+export const getFilePreview = (fileId: string) => {
+  return storage.getFilePreview(bucketId, fileId);
+};
+
+export const getFilePreviewUrl = (fileId: string) => {
+  return storage.getFilePreview(bucketId, fileId).toString();
+};
+
+// File management helpers
+export const uploadFile = async (file: File) => {
+  try {
+    const result = await storage.createFile(bucketId, ID.unique(), file);
+    return result.$id;
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    throw error;
+  }
+};
+
+export const deleteFile = async (fileId: string) => {
+  try {
+    await storage.deleteFile(bucketId, fileId);
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    throw error;
+  }
 };

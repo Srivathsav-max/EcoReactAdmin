@@ -1,25 +1,20 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyAuth } from '@/lib/auth';
+import { NextResponse } from "next/server";
 import prismadb from '@/lib/prismadb';
- 
+import { getAdminSession } from '@/lib/auth';
+
 export async function POST(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const token = cookies().get('token')?.value;
-    
-    if (!token) {
-      return new NextResponse("Unauthorized", { status: 403 });
-    }
+    const session = await getAdminSession();
 
-    const session = await verifyAuth(token);
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 403 });
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
     }
 
     const body = await req.json();
+    
     const { label, imageUrl } = body;
 
     if (!label) {
@@ -37,12 +32,12 @@ export async function POST(
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       }
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 403 });
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
     const billboard = await prismadb.billboard.create({
@@ -58,20 +53,26 @@ export async function POST(
     console.log('[BILLBOARDS_POST]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
+}
 
 export async function GET(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
+    }
+
     if (!params.storeId) {
       return new NextResponse("Store id is required", { status: 400 });
     }
 
     const billboards = await prismadb.billboard.findMany({
       where: {
-        storeId: params.storeId
+        storeId: params.storeId,
       }
     });
   
@@ -80,4 +81,4 @@ export async function GET(
     console.log('[BILLBOARDS_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
+}

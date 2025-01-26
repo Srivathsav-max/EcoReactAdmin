@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { Inter } from 'next/font/google'
 import type { Metadata } from 'next'
 

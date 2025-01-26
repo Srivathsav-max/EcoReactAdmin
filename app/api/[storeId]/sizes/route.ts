@@ -1,21 +1,20 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyAuth } from '@/lib/auth';
+import { NextResponse } from "next/server";
 import prismadb from '@/lib/prismadb';
+import { getAdminSession } from '@/lib/auth';
 
 export async function POST(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const token = cookies().get('token')?.value;
-    if (!token) return new NextResponse("Unauthorized", { status: 403 });
-    
-    const session = await verifyAuth(token);
-    if (!session?.user) return new NextResponse("Unauthorized", { status: 403 });
+    const session = await getAdminSession();
+
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
+    }
 
     const body = await req.json();
-
+    
     const { name, value } = body;
 
     if (!name) {
@@ -33,19 +32,19 @@ export async function POST(
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId: session.user.id,
+        userId: session.userId,
       }
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
     }
 
     const size = await prismadb.size.create({
       data: {
         name,
         value,
-        storeId: params.storeId
+        storeId: params.storeId,
       }
     });
   
@@ -54,20 +53,26 @@ export async function POST(
     console.log('[SIZES_POST]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
+}
 
 export async function GET(
   req: Request,
   { params }: { params: { storeId: string } }
 ) {
   try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
+    }
+
     if (!params.storeId) {
       return new NextResponse("Store id is required", { status: 400 });
     }
 
     const sizes = await prismadb.size.findMany({
       where: {
-        storeId: params.storeId
+        storeId: params.storeId,
       }
     });
   
@@ -76,4 +81,4 @@ export async function GET(
     console.log('[SIZES_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
+}

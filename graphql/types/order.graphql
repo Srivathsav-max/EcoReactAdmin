@@ -1,0 +1,66 @@
+type Order {
+  id: String!
+  storeId: String!
+  store: Store!
+  customerId: String
+  customer: Customer
+  orderItems: [OrderItem!]!
+  isPaid: Boolean!
+  phone: String!
+  address: String!
+  status: OrderStatus!
+  totalAmount: Decimal!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type OrderItem {
+  id: String!
+  orderId: String!
+  order: Order!
+  variantId: String!
+  variant: Variant!
+  quantity: Int!
+  price: Decimal!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input OrderCreateInput {
+  storeId: String!
+  customerId: String
+  phone: String!
+  address: String!
+  items: [OrderItemCreateInput!]!
+}
+
+input OrderItemCreateInput {
+  variantId: String!
+  quantity: Int!
+  price: Decimal!
+}
+
+input OrderUpdateInput {
+  isPaid: Boolean
+  status: OrderStatus
+  phone: String
+  address: String
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+type Query {
+  orders(storeId: String!): [Order!]!
+  order(id: String!, storeId: String!): Order
+}
+
+type Mutation {
+  createOrder(input: OrderCreateInput!): Order!
+  updateOrder(id: String!, storeId: String!, input: OrderUpdateInput!): Order!
+  deleteOrder(id: String!, storeId: String!): Boolean!
+}

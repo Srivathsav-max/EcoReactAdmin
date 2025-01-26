@@ -1,0 +1,43 @@
+type AdminSession {
+  userId: String!
+  email: String!
+  role: String!
+}
+
+type CustomerSession {
+  customerId: String!
+  email: String!
+  storeId: String!
+  role: String!
+}
+
+type SignInResponse {
+  userId: String
+  customerId: String
+  email: String!
+  storeId: String
+  role: String!
+}
+
+input AdminSignInInput {
+  email: String!
+  password: String!
+}
+
+input CustomerSignInInput {
+  email: String!
+  password: String!
+  storeId: String!
+}
+
+type Query {
+  adminSession: AdminSession
+  customerSession: CustomerSession
+}
+
+type Mutation {
+  adminSignIn(input: AdminSignInInput!): SignInResponse!
+  adminSignOut: Boolean!
+  customerSignIn(input: CustomerSignInInput!): SignInResponse!
+  customerSignOut: Boolean!
+}

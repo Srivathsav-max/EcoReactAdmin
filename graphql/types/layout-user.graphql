@@ -1,0 +1,101 @@
+type HomeLayout {
+  id: String!
+  storeId: String!
+  store: Store!
+  isActive: Boolean!
+  name: String!
+  components: [LayoutComponent!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type LayoutComponent {
+  id: String!
+  layoutId: String!
+  layout: HomeLayout!
+  type: LayoutComponentType!
+  position: Int!
+  config: JSON!
+  isVisible: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type User {
+  id: String!
+  name: String
+  email: String!
+  password: String!
+  stores: [Store!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input HomeLayoutCreateInput {
+  name: String!
+  isActive: Boolean
+}
+
+input HomeLayoutUpdateInput {
+  name: String!
+  isActive: Boolean
+}
+
+input LayoutComponentCreateInput {
+  type: LayoutComponentType!
+  position: Int
+  config: JSON
+  isVisible: Boolean
+}
+
+input LayoutComponentUpdateInput {
+  type: LayoutComponentType
+  position: Int
+  config: JSON
+  isVisible: Boolean
+}
+
+input UserCreateInput {
+  name: String
+  email: String!
+  password: String!
+}
+
+input UserUpdateInput {
+  name: String
+  email: String
+  password: String
+}
+
+enum LayoutComponentType {
+  BANNER
+  PRODUCT_GRID
+  CATEGORY_GRID
+  FEATURED_PRODUCTS
+  TEXT_BLOCK
+  IMAGE_GALLERY
+  NEWSLETTER
+  CUSTOM_HTML
+}
+
+type Query {
+  layouts(storeId: String!): [HomeLayout!]!
+  layout(id: String!, storeId: String!): HomeLayout
+  
+  me: User
+  user(id: String!): User
+}
+
+type Mutation {
+  createLayout(storeId: String!, input: HomeLayoutCreateInput!): HomeLayout!
+  updateLayout(id: String!, storeId: String!, input: HomeLayoutUpdateInput!): HomeLayout!
+  deleteLayout(id: String!, storeId: String!): Boolean!
+  
+  addLayoutComponent(layoutId: String!, storeId: String!, input: LayoutComponentCreateInput!): LayoutComponent!
+  updateLayoutComponent(id: String!, storeId: String!, input: LayoutComponentUpdateInput!): LayoutComponent!
+  deleteLayoutComponent(id: String!, storeId: String!): Boolean!
+  
+  createUser(input: UserCreateInput!): User!
+  updateUser(id: String!, input: UserUpdateInput!): User!
+  deleteUser(id: String!): Boolean!
+}

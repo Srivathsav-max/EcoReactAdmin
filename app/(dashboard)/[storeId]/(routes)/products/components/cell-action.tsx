@@ -1,13 +1,10 @@
 "use client";
 
-import axios from "axios";
-import { Copy, Edit, MoreHorizontal, Trash } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { Copy, Edit, MoreHorizontal, Trash, Archive, RefreshCcw } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 
-import { AlertModal } from "@/components/modals/alert-modal";
-import { Button } from "@/components/ui/button";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -15,46 +12,76 @@ import {
   DropdownMenuLabel, 
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-
-import { ProductColumn } from "./columns";
+import { Button } from "@/components/ui/button";
+import { AlertModal } from "@/components/modals/alert-modal";
+import { ProductColumn } from "@/hooks/use-products";
+import { graphqlClient, UPDATE_PRODUCT, DELETE_PRODUCT } from "@/lib/graphql-client";
 
 interface CellActionProps {
   data: ProductColumn;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({
-  data,
+  data
 }) => {
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
   const router = useRouter();
   const params = useParams();
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  const onConfirm = async () => {
+  const onCopy = (id: string) => {
+    navigator.clipboard.writeText(id);
+    toast.success("Product ID copied to clipboard");
+  };
+
+  const onArchive = async () => {
     try {
       setLoading(true);
-      await axios.delete(`/api/${params.storeId}/products/${data.id}`);
-      toast.success('Product deleted.');
+      
+      await graphqlClient.request(UPDATE_PRODUCT, {
+        id: data.id,
+        storeId: params.storeId,
+        input: {
+          isVisible: data.isArchived // If it's archived, we make it visible, and vice versa
+        }
+      });
+
       router.refresh();
+      toast.success(data.isArchived ? "Product restored." : "Product archived.");
     } catch (error) {
-      toast.error('Something went wrong');
+      toast.error("Something went wrong");
+      console.error('Error updating product:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onDelete = async () => {
+    try {
+      setLoading(true);
+      
+      await graphqlClient.request(DELETE_PRODUCT, {
+        id: data.id,
+        storeId: params.storeId
+      });
+
+      router.refresh();
+      toast.success("Product deleted.");
+    } catch (error) {
+      toast.error("Something went wrong");
+      console.error('Error deleting product:', error);
     } finally {
       setLoading(false);
       setOpen(false);
     }
   };
 
-  const onCopy = (id: string) => {
-    navigator.clipboard.writeText(id);
-    toast.success('Product ID copied to clipboard.');
-  }
-
   return (
     <>
       <AlertModal 
         isOpen={open} 
         onClose={() => setOpen(false)}
-        onConfirm={onConfirm}
+        onConfirm={onDelete}
         loading={loading}
       />
       <DropdownMenu>
@@ -66,20 +93,30 @@ export const CellAction: React.FC<CellActionProps> = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem
-            onClick={() => onCopy(data.id)}
-          >
-            <Copy className="mr-2 h-4 w-4" /> Copy Id
+          <DropdownMenuItem onClick={() => router.push(`/${params.storeId}/products/${data.id}`)}>
+            <Edit className="mr-2 h-4 w-4" />
+            Edit
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => router.push(`/${params.storeId}/products/${data.id}`)}
-          >
-            <Edit className="mr-2 h-4 w-4" /> Update
+          <DropdownMenuItem onClick={() => onCopy(data.id)}>
+            <Copy className="mr-2 h-4 w-4" />
+            Copy Id
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setOpen(true)}
-          >
-            <Trash className="mr-2 h-4 w-4" /> Delete
+          <DropdownMenuItem onClick={onArchive}>
+            {data.isArchived ? (
+              <>
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Restore
+              </>
+            ) : (
+              <>
+                <Archive className="mr-2 h-4 w-4" />
+                Archive
+              </>
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setOpen(true)}>
+            <Trash className="mr-2 h-4 w-4" />
+            Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

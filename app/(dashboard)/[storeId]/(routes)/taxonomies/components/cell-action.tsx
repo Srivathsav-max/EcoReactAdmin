@@ -1,8 +1,7 @@
 "use client";
 
-import axios from "axios";
 import { useState } from "react";
-import { Copy, Edit, MoreHorizontal, Trash } from "lucide-react";
+import { Edit, MoreHorizontal, Trash } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useParams, useRouter } from "next/navigation";
 
@@ -16,6 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AlertModal } from "@/components/modals/alert-modal";
 import { TaxonomyColumn } from "./columns";
+import { useTaxonomyMutations } from "@/hooks/use-taxonomy-mutations";
+import { useTaxonomies } from "@/hooks/use-taxonomies";
 
 interface CellActionProps {
   data: TaxonomyColumn;
@@ -26,20 +27,20 @@ export const CellAction: React.FC<CellActionProps> = ({
 }) => {
   const router = useRouter();
   const params = useParams();
-  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  
+  const { deleteTaxonomy, loading } = useTaxonomyMutations();
+  const { refetch } = useTaxonomies(params.storeId as string);
 
   const onConfirm = async () => {
     try {
-      setLoading(true);
-      await axios.delete(`/api/${params.storeId}/taxonomies/${data.id}`);
+      await deleteTaxonomy(params.storeId as string, data.id);
       toast.success('Taxonomy deleted.');
-      router.refresh();
+      await refetch();
     } catch (error) {
       toast.error('Make sure you removed all products using this taxonomy first.');
     } finally {
       setOpen(false);
-      setLoading(false);
     }
   };
 

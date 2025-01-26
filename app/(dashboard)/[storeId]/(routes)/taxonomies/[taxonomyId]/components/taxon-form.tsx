@@ -4,9 +4,7 @@ import * as z from "zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Taxon } from "@prisma/client";
 import { toast } from "react-hot-toast";
-import axios from "axios";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Plus } from "lucide-react";
 
@@ -20,22 +18,21 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useTaxonomyMutations } from "@/hooks/use-taxonomy-mutations";
+import { useTaxonomyDetails } from "@/hooks/use-taxonomy-details";
+import type { TaxonWithChildren } from "@/types/taxon";
 
 const formSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
 });
 
-interface TaxonWithChildren extends Taxon {
-  children?: TaxonWithChildren[];
-}
-
 interface TaxonFormProps {
   taxonomyId: string;
   storeId: string;
   parentId?: string;
   initialData?: TaxonWithChildren;
-  childTaxons?: TaxonWithChildren[]; 
+  childTaxons?: TaxonWithChildren[];
   onSuccess?: () => void;
 }
 
@@ -52,6 +49,9 @@ export const TaxonForm: React.FC<TaxonFormProps> = ({
   const [showForm, setShowForm] = useState(!initialData);
   const router = useRouter();
 
+  const { createTaxon, updateTaxon, loading: mutationLoading } = useTaxonomyMutations();
+  const { refetch } = useTaxonomyDetails(storeId, taxonomyId);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -64,25 +64,34 @@ export const TaxonForm: React.FC<TaxonFormProps> = ({
     try {
       setIsLoading(true);
       if (initialData) {
-        // Updated API path
-        await axios.patch(`/api/${storeId}/taxons/${initialData.id}`, values);
+        await updateTaxon(storeId, initialData.id, {
+          name: values.name,
+          description: values.description,
+          position: initialData.position,
+          parentId: parentId
+        });
       } else {
-        // Updated API path
-        await axios.post(`/api/${storeId}/taxons`, {
-          ...values,
+        await createTaxon(storeId, {
+          name: values.name,
+          description: values.description,
           taxonomyId,
-          parentId,
+          parentId
         });
       }
       toast.success(initialData ? "Taxon updated." : "Taxon created.");
-      router.refresh(); // Force a refresh of the server components
+      await refetch();
       onSuccess?.();
+      if (!initialData) {
+        form.reset();
+      }
     } catch (error) {
       toast.error("Something went wrong.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  const isLoadingState = isLoading || mutationLoading;
 
   return (
     <div>
@@ -118,14 +127,32 @@ export const TaxonForm: React.FC<TaxonFormProps> = ({
                       <FormItem>
                         <FormLabel>Name</FormLabel>
                         <FormControl>
-                          <Input {...field} disabled={isLoading} placeholder="Enter taxon name" />
+                          <Input {...field} disabled={isLoadingState} placeholder="Enter taxon name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            disabled={isLoadingState} 
+                            placeholder="Enter description"
+                            value={field.value || ''} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <div className="flex items-center gap-2">
-                    <Button type="submit" disabled={isLoading}>
+                    <Button type="submit" disabled={isLoadingState}>
                       Create Sub-Taxon
                     </Button>
                     <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
@@ -165,14 +192,32 @@ export const TaxonForm: React.FC<TaxonFormProps> = ({
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input {...field} disabled={isLoading} placeholder="Enter taxon name" />
+                      <Input {...field} disabled={isLoadingState} placeholder="Enter taxon name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        disabled={isLoadingState} 
+                        placeholder="Enter description"
+                        value={field.value || ''} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <div className="flex items-center gap-2">
-                <Button type="submit" disabled={isLoading}>
+                <Button type="submit" disabled={isLoadingState}>
                   Create Taxon
                 </Button>
               </div>

@@ -40,11 +40,16 @@ export default function StoreSwitcher({ className, items = [] }: StoreSwitcherPr
 
   const currentStore = formattedItems.find((item) => item.value === params.storeId);
 
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(false);
 
   const onStoreSelect = (store: { value: string, label: string }) => {
     setOpen(false);
     router.push(`/${store.value}`);
+  };
+
+  const onCreateStore = () => {
+    setOpen(false);
+    storeModal.onOpen();
   };
 
   return (
@@ -93,10 +98,7 @@ export default function StoreSwitcher({ className, items = [] }: StoreSwitcherPr
           <CommandList>
             <CommandGroup>
               <CommandItem
-                onSelect={() => {
-                  setOpen(false)
-                  storeModal.onOpen()
-                }}
+                onSelect={onCreateStore}
               >
                 <PlusCircle className="mr-2 h-5 w-5" />
                 Create Store
