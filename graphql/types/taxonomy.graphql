@@ -4,7 +4,7 @@ type Taxonomy {
   description: String
   storeId: String!
   store: Store!
-  taxons: [Taxon!]!
+  taxons(where: TaxonWhereInput): [Taxon!]!
   _count: TaxonomyCount!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -12,6 +12,10 @@ type Taxonomy {
 
 type TaxonomyCount {
   taxons: Int!
+}
+
+input TaxonWhereInput {
+  parentId: String
 }
 
 type Taxon {

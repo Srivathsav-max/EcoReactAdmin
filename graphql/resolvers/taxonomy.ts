@@ -4,12 +4,13 @@ import { getAdminSession } from '@/lib/auth';
 import { Prisma } from '@prisma/client';
 
 // Helper function to build taxon hierarchy
-const buildTaxonHierarchy = (taxons: any[], parentId: string | null = null): any[] => {
+const buildTaxonHierarchy = (taxons: any[], parentId: string | null = null, level = 0): any[] => {
   return taxons
     .filter(taxon => taxon.parentId === parentId)
     .map(taxon => ({
       ...taxon,
-      children: buildTaxonHierarchy(taxons, taxon.id)
+      level,
+      children: buildTaxonHierarchy(taxons, taxon.id, level + 1)
     }))
     .sort((a, b) => a.position - b.position);
 };
@@ -40,9 +41,7 @@ export const taxonomyResolvers = {
       requireStoreAccess(context, storeId);
 
       const rawTaxonomies = await context.prisma.taxonomy.findMany({
-        where: {
-          storeId
-        },
+        where: { storeId },
         include: {
           taxons: {
             include: {
@@ -55,28 +54,14 @@ export const taxonomyResolvers = {
         }
       });
 
-      // Process taxonomies
       const processedTaxonomies = rawTaxonomies.map(taxonomy => {
         const hierarchicalTaxons = buildTaxonHierarchy(taxonomy.taxons);
-        
-        // Add full paths and levels to each taxon
-        const processNode = (node: any, level: number = 0): any => {
-          return {
-            ...node,
-            level,
-            fullPath: getFullPath(node, taxonomy, taxonomy.taxons),
-            children: node.children.map((child: any) => processNode(child, level + 1))
-          };
-        };
-
-        const processedTaxons = hierarchicalTaxons.map(taxon => processNode(taxon));
-
         return {
           ...taxonomy,
           _count: {
             taxons: taxonomy.taxons.length
           },
-          taxons: processedTaxons
+          taxons: hierarchicalTaxons
         };
       });
 
@@ -92,14 +77,12 @@ export const taxonomyResolvers = {
       requireStoreAccess(context, storeId);
 
       const taxonomy = await context.prisma.taxonomy.findFirst({
-        where: {
-          id,
-          storeId
-        },
+        where: { id, storeId },
         include: {
           taxons: {
             include: {
               billboard: true,
+              products: true
             }
           }
         }
@@ -110,25 +93,13 @@ export const taxonomyResolvers = {
       }
 
       const hierarchicalTaxons = buildTaxonHierarchy(taxonomy.taxons);
-      
-      // Add full paths and levels to each taxon
-      const processNode = (node: any, level: number = 0): any => {
-        return {
-          ...node,
-          level,
-          fullPath: getFullPath(node, taxonomy, taxonomy.taxons),
-          children: node.children.map((child: any) => processNode(child, level + 1))
-        };
-      };
-
-      const processedTaxons = hierarchicalTaxons.map(taxon => processNode(taxon));
 
       return {
         ...taxonomy,
         _count: {
           taxons: taxonomy.taxons.length
         },
-        taxons: processedTaxons
+        taxons: hierarchicalTaxons
       };
     },
   },
@@ -147,10 +118,6 @@ export const taxonomyResolvers = {
     ) => {
       const { storeId, input } = args;
       const { name, description } = input;
-
-      if (!name) {
-        throw new Error('Name is required');
-      }
 
       requireStoreAccess(context, storeId);
 
@@ -189,16 +156,10 @@ export const taxonomyResolvers = {
       const { id, storeId, input } = args;
       const { name, description } = input;
 
-      if (!name) {
-        throw new Error('Name is required');
-      }
-
       requireStoreAccess(context, storeId);
 
       const taxonomy = await context.prisma.taxonomy.update({
-        where: {
-          id
-        },
+        where: { id },
         data: {
           name,
           description
@@ -206,31 +167,21 @@ export const taxonomyResolvers = {
         include: {
           taxons: {
             include: {
-              billboard: true
+              billboard: true,
+              products: true
             }
           }
         }
       });
 
       const hierarchicalTaxons = buildTaxonHierarchy(taxonomy.taxons);
-      
-      const processNode = (node: any, level: number = 0): any => {
-        return {
-          ...node,
-          level,
-          fullPath: getFullPath(node, taxonomy, taxonomy.taxons),
-          children: node.children.map((child: any) => processNode(child, level + 1))
-        };
-      };
-
-      const processedTaxons = hierarchicalTaxons.map(taxon => processNode(taxon));
 
       return {
         ...taxonomy,
         _count: {
           taxons: taxonomy.taxons.length
         },
-        taxons: processedTaxons
+        taxons: hierarchicalTaxons
       };
     },
 
@@ -243,9 +194,7 @@ export const taxonomyResolvers = {
       requireStoreAccess(context, storeId);
 
       await context.prisma.taxonomy.delete({
-        where: {
-          id
-        }
+        where: { id }
       });
 
       return true;
@@ -259,17 +208,38 @@ export const taxonomyResolvers = {
         where: { id: parent.storeId }
       });
     },
-    taxons: async (parent: any, _args: any, context: GraphQLContext) => {
+    taxons: async (parent: any, args: { where?: { parentId: string | null } }, context: GraphQLContext) => {
+      const where = {
+        taxonomyId: parent.id,
+        ...(args.where ? { parentId: args.where.parentId } : {})
+      };
+
       const taxons = await context.prisma.taxon.findMany({
-        where: { taxonomyId: parent.id },
+        where,
         include: {
           billboard: true,
           children: true,
           parent: true,
           products: true
-        }
+        },
+        orderBy: { position: 'asc' }
       });
-      return buildTaxonHierarchy(taxons);
+
+      // If filtering by parentId, we only need to process this level
+      if (args.where?.parentId !== undefined) {
+        return taxons.map(taxon => ({
+          ...taxon,
+          level: taxon.parentId ? 1 : 0
+        }));
+      }
+
+      // Otherwise, build full hierarchy
+      const rootTaxons = taxons.filter(taxon => !taxon.parentId);
+      return rootTaxons.map(taxon => ({
+        ...taxon,
+        level: 0,
+        children: buildTaxonHierarchy(taxons, taxon.id, 1)
+      }));
     }
   },
 
@@ -287,14 +257,20 @@ export const taxonomyResolvers = {
     },
     parent: async (parent: any, _args: any, context: GraphQLContext) => {
       if (!parent.parentId) return null;
-      return context.prisma.taxon.findUnique({
+      const parentTaxon = await context.prisma.taxon.findUnique({
         where: { id: parent.parentId }
       });
+      return parentTaxon ? { ...parentTaxon, level: (parent.level || 0) - 1 } : null;
     },
     children: async (parent: any, _args: any, context: GraphQLContext) => {
-      return context.prisma.taxon.findMany({
-        where: { parentId: parent.id }
+      const children = await context.prisma.taxon.findMany({
+        where: { parentId: parent.id },
+        orderBy: { position: 'asc' }
       });
+      return children.map(child => ({
+        ...child,
+        level: (parent.level || 0) + 1
+      }));
     },
     products: async (parent: any, _args: any, context: GraphQLContext) => {
       const taxon = await context.prisma.taxon.findUnique({

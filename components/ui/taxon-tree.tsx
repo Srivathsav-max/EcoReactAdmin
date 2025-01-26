@@ -1,22 +1,18 @@
 "use client";
 
-import { Taxon } from "@prisma/client";
 import { ChevronRight, Plus, Settings } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
-
-interface TaxonWithChildren extends Taxon {
-  children?: TaxonWithChildren[];
-}
+import type { TaxonWithChildren } from "@/types/taxon";
 
 interface TaxonTreeProps {
   taxon: TaxonWithChildren;
   level?: number;
-  onSelect?: (taxon: Taxon) => void;
+  onSelect?: (taxon: TaxonWithChildren) => void;
   onAddChild?: (parentId: string) => void;
   selectedId?: string;
-  products?: any[];
+  products?: Array<{ taxons: Array<{ id: string }> }>;
 }
 
 export const TaxonTree: React.FC<TaxonTreeProps> = ({
@@ -40,8 +36,8 @@ export const TaxonTree: React.FC<TaxonTreeProps> = ({
   const isSelected = selectedId === taxon.id;
 
   // Sort function for children
-  const sortChildren = (children: any[]) => {
-    return children?.sort((a, b) => {
+  const sortChildren = (children: TaxonWithChildren[]) => {
+    return [...children].sort((a, b) => {
       if (a.position !== b.position) {
         return a.position - b.position;
       }
@@ -50,10 +46,10 @@ export const TaxonTree: React.FC<TaxonTreeProps> = ({
   };
 
   // Get all descendants for product count
-  const getAllDescendantIds = (taxon: any): string[] => {
+  const getAllDescendantIds = (taxon: TaxonWithChildren): string[] => {
     let ids = [taxon.id];
     if (taxon.children) {
-      taxon.children.forEach((child: any) => {
+      taxon.children.forEach((child) => {
         ids = [...ids, ...getAllDescendantIds(child)];
       });
     }
@@ -61,10 +57,10 @@ export const TaxonTree: React.FC<TaxonTreeProps> = ({
   };
 
   // Calculate product count including children
-  const productCount = products.filter(
-    product => product.taxons?.some((t: any) => 
-      getAllDescendantIds(taxon).includes(t.id)
-    )
+  const productCount = taxon.products?.length || 0;
+  const descendantIds = getAllDescendantIds(taxon);
+  const totalProductCount = products.filter(
+    product => product.taxons?.some(t => descendantIds.includes(t.id))
   ).length;
 
   const sortedChildren = sortChildren(taxon.children || []);
@@ -115,13 +111,13 @@ export const TaxonTree: React.FC<TaxonTreeProps> = ({
           className="flex-1 flex items-center cursor-pointer min-h-[2rem]"
         >
           <span className="text-sm font-medium dark:text-slate-100">{taxon.name}</span>
-          {productCount > 0 && (
+          {totalProductCount > 0 && (
             <span className={cn(
               "text-xs ml-2 px-2 py-1 rounded-full",
               "bg-slate-100 dark:bg-slate-800",
               "text-slate-600 dark:text-slate-400"
             )}>
-              {productCount}
+              {totalProductCount}
             </span>
           )}
           {taxon.description && (
