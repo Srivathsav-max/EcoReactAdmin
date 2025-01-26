@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "@/components/providers/sidebar-provider";
 import {
   LayoutDashboard,
   Package,
@@ -55,11 +56,12 @@ type RouteItem = {
 export function Sidebar({ store }: SidebarProps) {
   const pathname = usePathname();
   const params = useParams();
+  const { isCollapsed, toggleSidebar } = useSidebar();
   const [openCategories, setOpenCategories] = useState<string[]>([]);
 
   const toggleCategory = (category: string) => {
-    setOpenCategories(prev => 
-      prev.includes(category) 
+    setOpenCategories(prev =>
+      prev.includes(category)
         ? prev.filter(c => c !== category)
         : [...prev, category]
     );
@@ -219,11 +221,34 @@ export function Sidebar({ store }: SidebarProps) {
   ];
 
   return (
-    <div className={cn("pb-12 min-h-screen border-r relative")}>
-      <div className="space-y-4 py-4 h-full overflow-y-auto max-h-screen">
+    <div
+      className={cn(
+        "hidden h-full md:flex md:flex-col md:fixed md:inset-y-0 z-[80] bg-background border-r transition-all duration-300 ease-in-out",
+        isCollapsed ? "w-[80px]" : "w-[280px]"
+      )}
+      aria-expanded={!isCollapsed}
+    >
+      <button
+        onClick={toggleSidebar}
+        className="absolute -right-3 top-6 z-50 rounded-full border bg-background p-1.5 hover:bg-accent transition-colors"
+        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        <ChevronRight
+          className={cn(
+            "h-4 w-4 transition-transform duration-300",
+            isCollapsed ? "rotate-0" : "rotate-180"
+          )}
+        />
+      </button>
+      <div className="space-y-4 py-4 h-full overflow-y-auto max-h-screen scrollbar-hide">
         <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-lg font-semibold sticky top-0 bg-background z-50">
-            Store Management
+          <h2 
+            className={cn(
+              "mb-2 px-4 text-lg font-semibold sticky top-0 bg-background z-40 transition-all duration-300",
+              isCollapsed && "text-center text-sm px-0 overflow-hidden whitespace-nowrap"
+            )}
+          >
+            {isCollapsed ? "SM" : "Store Management"}
           </h2>
           <div className="space-y-1">
             {routes.map((route, index) => (
@@ -234,30 +259,58 @@ export function Sidebar({ store }: SidebarProps) {
                     onOpenChange={() => toggleCategory(route.label)}
                   >
                     <CollapsibleTrigger className="w-full">
-                      <div className="px-4 py-2 flex items-center justify-between text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors">
+                      <div 
+                        className={cn(
+                          "px-4 py-2 flex items-center justify-between text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-all duration-300",
+                          isCollapsed && "px-2 justify-center"
+                        )}
+                      >
                         <div className="flex items-center">
-                          {route.icon && <route.icon className="h-4 w-4 mr-2" />}
-                          {route.label}
+                          {route.icon && (
+                            <route.icon 
+                              className={cn(
+                                "h-4 w-4 transition-all duration-300",
+                                isCollapsed ? "mr-0" : "mr-2"
+                              )} 
+                            />
+                          )}
+                          {!isCollapsed && route.label}
                         </div>
-                        <ChevronRight className={cn(
-                          "h-4 w-4 transition-transform",
-                          openCategories.includes(route.label) && "transform rotate-90"
-                        )} />
+                        {!isCollapsed && (
+                          <ChevronRight 
+                            className={cn(
+                              "h-4 w-4 transition-transform duration-300",
+                              openCategories.includes(route.label) && "transform rotate-90"
+                            )} 
+                          />
+                        )}
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <div className="pl-4 space-y-1 pt-2">
+                      <div className={cn(
+                        "pl-4 space-y-1 pt-2",
+                        isCollapsed && "pl-2"
+                      )}>
                         {route.items.map((item) => (
                           <Link
                             key={item.href}
                             href={item.href}
                             className={cn(
-                              "flex items-center rounded-md px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors",
-                              item.active ? "bg-accent text-accent-foreground" : "transparent"
+                              "flex items-center rounded-md px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-all duration-300",
+                              item.active ? "bg-accent text-accent-foreground" : "transparent",
+                              isCollapsed && "px-2 justify-center"
                             )}
+                            title={isCollapsed ? item.label : undefined}
                           >
-                            {item.icon}
-                            <span className="ml-2">{item.label}</span>
+                            {item.icon && (
+                              <div className={cn(
+                                "transition-all duration-300",
+                                isCollapsed ? "w-5 h-5" : "w-4 h-4"
+                              )}>
+                                {item.icon}
+                              </div>
+                            )}
+                            {!isCollapsed && <span className="ml-2">{item.label}</span>}
                           </Link>
                         ))}
                       </div>
@@ -267,12 +320,21 @@ export function Sidebar({ store }: SidebarProps) {
                   <Link
                     href={route.href}
                     className={cn(
-                      "flex items-center rounded-md px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors",
-                      route.active ? "bg-accent text-accent-foreground" : "transparent"
+                      "flex items-center rounded-md px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-all duration-300",
+                      route.active ? "bg-accent text-accent-foreground" : "transparent",
+                      isCollapsed && "px-2 justify-center"
                     )}
+                    title={isCollapsed ? route.label : undefined}
                   >
-                    {route.icon && <route.icon className="h-4 w-4 mr-2" />}
-                    {route.label}
+                    {route.icon && (
+                      <route.icon 
+                        className={cn(
+                          "h-4 w-4 transition-all duration-300",
+                          isCollapsed ? "mr-0" : "mr-2"
+                        )} 
+                      />
+                    )}
+                    {!isCollapsed && route.label}
                   </Link>
                 ) : null}
               </div>
