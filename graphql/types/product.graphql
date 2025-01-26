@@ -55,6 +55,43 @@ type ProductProperty {
   position: Int!
 }
 
+type ProductReview {
+  id: ID!
+  productId: String!
+  product: Product!
+  customerId: String!
+  customer: Customer!
+  rating: Int!
+  title: String
+  content: String
+  status: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Image {
+  id: ID!
+  url: String!
+  fileId: String!
+  productId: String
+  product: Product
+  variantId: String
+  variant: Variant
+  position: Int!
+  altText: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type VariantOptionValue {
+  id: ID!
+  variantId: String!
+  variant: Variant!
+  optionValueId: String!
+  optionValue: OptionValue!
+  position: Int!
+}
+
 type Variant {
   id: ID!
   name: String!
@@ -93,122 +130,77 @@ type Variant {
   updatedAt: DateTime!
 }
 
-input ProductCreateInput {
-  storeId: String!
-  name: String!
-  slug: String!
-  description: String
-  metaTitle: String
-  metaDescription: String
-  metaKeywords: String
-  sku: String
-  price: Decimal
-  costPrice: Decimal
-  compareAtPrice: Decimal
-  status: String
-  shortDescription: String
-  isVisible: Boolean
-  isPromotionable: Boolean
-  isVirtual: Boolean
-  hasVariants: Boolean
-  minimumQuantity: Int
-  maximumQuantity: Int
-  tags: [String!]
-  barcode: String
-  countryOfOrigin: String
-  warrantyInfo: String
+input ProductFilter {
   brandId: String
+  isVisible: Boolean
+}
+
+input ImageCreateInput {
+  url: String!
+  fileId: String!
+  position: Int
+  altText: String
+}
+
+input OptionTypeInput {
+  name: String!
+  presentation: String!
+  position: Int!
+}
+
+type Query {
+  products(storeId: String!, filter: ProductFilter): [Product!]!
+  product(id: String!, storeId: String!): Product
+}
+
+type Mutation {
+  createProduct(storeId: String!, input: ProductCreateInput!): Product!
+  updateProduct(id: String!, storeId: String!, input: ProductUpdateInput!): Product!
+  deleteProduct(id: String!, storeId: String!): Boolean!
+}
+
+input ProductCreateInput {
+  name: String!
+  description: String
+  price: Decimal!
+  images: [ImageCreateInput!]
+  brandId: String
+  isVisible: Boolean
+  status: String
+  hasVariants: Boolean
+  sku: String
+  barcode: String
+  tags: [String!]
+  taxons: [String!]
   taxRate: Decimal
-  taxCategory: String
-  shippingCategory: String
   weight: Float
   height: Float
   width: Float
   depth: Float
+  minimumQuantity: Int
+  maximumQuantity: Int
+  optionTypes: [OptionTypeInput!]
 }
 
 input ProductUpdateInput {
   name: String
-  slug: String
   description: String
-  metaTitle: String
-  metaDescription: String
-  metaKeywords: String
-  sku: String
   price: Decimal
-  costPrice: Decimal
-  compareAtPrice: Decimal
-  status: String
-  shortDescription: String
-  isVisible: Boolean
-  isPromotionable: Boolean
-  isVirtual: Boolean
-  hasVariants: Boolean
-  minimumQuantity: Int
-  maximumQuantity: Int
-  tags: [String!]
-  barcode: String
-  countryOfOrigin: String
-  warrantyInfo: String
+  images: [ImageCreateInput!]
   brandId: String
-  taxRate: Decimal
-  taxCategory: String
-  shippingCategory: String
-  weight: Float
-  height: Float
-  width: Float
-  depth: Float
-}
-
-input VariantCreateInput {
-  productId: String!
-  name: String!
-  sku: String!
-  price: Decimal!
-  costPrice: Decimal
-  compareAtPrice: Decimal
-  position: Int
-  trackInventory: Boolean
-  weight: Float
-  height: Float
-  width: Float
-  depth: Float
-  sizeId: String
-  colorId: String
-  allowBackorder: Boolean
-  lowStockAlert: Int
-  barcode: String
   isVisible: Boolean
-  isDefault: Boolean
-  minimumQuantity: Int
-  maximumQuantity: Int
-  taxRate: Decimal
-  dimensions: JSON
-  customFields: JSON
-}
-
-input VariantUpdateInput {
-  name: String
+  status: String
+  hasVariants: Boolean
   sku: String
-  price: Decimal
-  costPrice: Decimal
-  compareAtPrice: Decimal
-  position: Int
-  trackInventory: Boolean
+  barcode: String
+  tags: [String!]
+  taxons: [String!]
+  taxRate: Decimal
   weight: Float
   height: Float
   width: Float
   depth: Float
-  sizeId: String
-  colorId: String
-  allowBackorder: Boolean
-  lowStockAlert: Int
-  barcode: String
-  isVisible: Boolean
-  isDefault: Boolean
   minimumQuantity: Int
   maximumQuantity: Int
-  taxRate: Decimal
-  dimensions: JSON
-  customFields: JSON
+  optionTypes: [OptionTypeInput!]
 }

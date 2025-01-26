@@ -5,8 +5,13 @@ type Taxonomy {
   storeId: String!
   store: Store!
   taxons: [Taxon!]!
+  _count: TaxonomyCount!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+type TaxonomyCount {
+  taxons: Int!
 }
 
 type Taxon {
@@ -23,6 +28,8 @@ type Taxon {
   parent: Taxon
   children: [Taxon!]!
   products: [Product!]!
+  level: Int!
+  fullPath: String!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -41,11 +48,10 @@ type Billboard {
 input TaxonomyCreateInput {
   name: String!
   description: String
-  storeId: String!
 }
 
 input TaxonomyUpdateInput {
-  name: String
+  name: String!
   description: String
 }
 
@@ -67,7 +73,6 @@ input TaxonUpdateInput {
 }
 
 input BillboardCreateInput {
-  storeId: String!
   label: String!
   imageUrl: String!
 }
@@ -75,4 +80,26 @@ input BillboardCreateInput {
 input BillboardUpdateInput {
   label: String
   imageUrl: String
+}
+
+type Query {
+  taxonomies(storeId: String!): [Taxonomy!]!
+  taxonomy(id: String!, storeId: String!): Taxonomy
+  
+  billboards(storeId: String!): [Billboard!]!
+  billboard(id: String!, storeId: String!): Billboard
+}
+
+type Mutation {
+  createTaxonomy(storeId: String!, input: TaxonomyCreateInput!): Taxonomy!
+  updateTaxonomy(id: String!, storeId: String!, input: TaxonomyUpdateInput!): Taxonomy!
+  deleteTaxonomy(id: String!, storeId: String!): Boolean!
+  
+  createTaxon(taxonomyId: String!, storeId: String!, input: TaxonCreateInput!): Taxon!
+  updateTaxon(id: String!, storeId: String!, input: TaxonUpdateInput!): Taxon!
+  deleteTaxon(id: String!, storeId: String!): Boolean!
+  
+  createBillboard(storeId: String!, input: BillboardCreateInput!): Billboard!
+  updateBillboard(id: String!, storeId: String!, input: BillboardUpdateInput!): Billboard!
+  deleteBillboard(id: String!, storeId: String!): Boolean!
 }

@@ -25,18 +25,31 @@ type Store {
   attributeValues: [AttributeValue!]
   optionTypes: [OptionType!]
   homeLayouts: [HomeLayout!]
+  _count: StoreCount
+}
+
+type StoreCount {
+  products: Int!
+  billboards: Int!
+  customers: Int!
+}
+
+type Query {
+  stores: [Store!]!
+  store(id: ID!): Store
+  storeByDomain(domain: String!): Store
+}
+
+type Mutation {
+  createStore(input: StoreCreateInput!): Store!
+  updateStore(id: ID!, input: StoreUpdateInput!): Store!
+  deleteStore(id: ID!): Boolean!
 }
 
 input StoreCreateInput {
   name: String!
-  userId: String!
   currency: String
   locale: String
-  domain: String
-  themeSettings: JSON
-  customCss: String
-  logoUrl: String
-  faviconUrl: String
 }
 
 input StoreUpdateInput {

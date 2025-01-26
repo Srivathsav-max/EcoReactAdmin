@@ -5,7 +5,7 @@ type StockItem {
   storeId: String!
   store: Store!
   count: Int!
-  stockStatus: String!
+  stockStatus: StockStatus!
   reserved: Int!
   backorderedQty: Int!
   stockMovements: [StockMovement!]!
@@ -20,7 +20,7 @@ type StockMovement {
   stockItemId: String!
   stockItem: StockItem!
   quantity: Int!
-  type: String!
+  type: StockMovementType!
   reason: String
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -50,30 +50,26 @@ type Color {
 
 input StockItemCreateInput {
   variantId: String!
-  storeId: String!
   count: Int!
-  stockStatus: StockStatus
-  reserved: Int
-  backorderedQty: Int
 }
 
 input StockItemUpdateInput {
-  count: Int
-  stockStatus: StockStatus
-  reserved: Int
-  backorderedQty: Int
+  count: Int!
 }
 
 input StockMovementCreateInput {
-  variantId: String!
   stockItemId: String!
-  quantity: Int!
   type: StockMovementType!
+  quantity: Int!
   reason: String
 }
 
+input StockMovementFilter {
+  stockItemId: String
+  type: StockMovementType
+}
+
 input SizeCreateInput {
-  storeId: String!
   name: String!
   value: String!
 }
@@ -84,7 +80,6 @@ input SizeUpdateInput {
 }
 
 input ColorCreateInput {
-  storeId: String!
   name: String!
   value: String!
 }
@@ -104,4 +99,35 @@ enum StockMovementType {
   INCREMENT
   DECREMENT
   ADJUSTMENT
+}
+
+type Query {
+  stockItems(storeId: String!, variantId: String): [StockItem!]!
+  stockItem(id: String!, storeId: String!): StockItem
+  
+  stockMovements(storeId: String!, filter: StockMovementFilter): [StockMovement!]!
+  stockMovement(id: String!, storeId: String!): StockMovement
+  
+  sizes(storeId: String!): [Size!]!
+  size(id: String!, storeId: String!): Size
+  
+  colors(storeId: String!): [Color!]!
+  color(id: String!, storeId: String!): Color
+}
+
+type Mutation {
+  createStockItem(storeId: String!, input: StockItemCreateInput!): StockItem!
+  updateStockItem(id: String!, storeId: String!, input: StockItemUpdateInput!): StockItem!
+  deleteStockItem(id: String!, storeId: String!): Boolean!
+  adjustStockItemCount(id: String!, storeId: String!, adjustment: Int!): StockItem!
+  
+  createStockMovement(storeId: String!, input: StockMovementCreateInput!): StockMovement!
+  
+  createSize(storeId: String!, input: SizeCreateInput!): Size!
+  updateSize(id: String!, storeId: String!, input: SizeUpdateInput!): Size!
+  deleteSize(id: String!, storeId: String!): Boolean!
+  
+  createColor(storeId: String!, input: ColorCreateInput!): Color!
+  updateColor(id: String!, storeId: String!, input: ColorUpdateInput!): Color!
+  deleteColor(id: String!, storeId: String!): Boolean!
 }

@@ -8,6 +8,7 @@ type Customer {
   phone: String
   addresses: [Address!]!
   reviews: [ProductReview!]!
+  orders: [Order!]!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -36,9 +37,14 @@ type ProductReview {
   rating: Int!
   title: String
   content: String!
-  status: String!
+  status: ReviewStatus!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+input CustomerFilter {
+  email: String
+  name: String
 }
 
 input CustomerCreateInput {
@@ -57,7 +63,6 @@ input CustomerUpdateInput {
 }
 
 input AddressCreateInput {
-  customerId: String!
   type: String!
   street: String!
   city: String!
@@ -89,11 +94,26 @@ input ProductReviewUpdateInput {
   rating: Int
   title: String
   content: String
-  status: String
+  status: ReviewStatus
 }
 
 enum ReviewStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+type Query {
+  customers(storeId: String!, filter: CustomerFilter): [Customer!]!
+  customer(id: String!, storeId: String!): Customer
+}
+
+type Mutation {
+  createCustomer(storeId: String!, input: CustomerCreateInput!): Customer!
+  updateCustomer(id: String!, storeId: String!, input: CustomerUpdateInput!): Customer!
+  deleteCustomer(id: String!, storeId: String!): Boolean!
+  
+  addCustomerAddress(customerId: String!, storeId: String!, input: AddressCreateInput!): Address!
+  updateCustomerAddress(id: String!, storeId: String!, input: AddressUpdateInput!): Address!
+  deleteCustomerAddress(id: String!, storeId: String!): Boolean!
 }

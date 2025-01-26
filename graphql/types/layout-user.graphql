@@ -13,7 +13,7 @@ type LayoutComponent {
   id: ID!
   layoutId: String!
   layout: HomeLayout!
-  type: String!
+  type: LayoutComponentType!
   position: Int!
   config: JSON!
   isVisible: Boolean!
@@ -26,31 +26,30 @@ type User {
   name: String
   email: String!
   password: String!
+  stores: [Store!]!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
 
 input HomeLayoutCreateInput {
-  storeId: String!
   name: String!
   isActive: Boolean
 }
 
 input HomeLayoutUpdateInput {
-  name: String
+  name: String!
   isActive: Boolean
 }
 
 input LayoutComponentCreateInput {
-  layoutId: String!
-  type: String!
+  type: LayoutComponentType!
   position: Int
   config: JSON
   isVisible: Boolean
 }
 
 input LayoutComponentUpdateInput {
-  type: String
+  type: LayoutComponentType
   position: Int
   config: JSON
   isVisible: Boolean
@@ -77,4 +76,26 @@ enum LayoutComponentType {
   IMAGE_GALLERY
   NEWSLETTER
   CUSTOM_HTML
+}
+
+type Query {
+  layouts(storeId: String!): [HomeLayout!]!
+  layout(id: String!, storeId: String!): HomeLayout
+  
+  me: User
+  user(id: String!): User
+}
+
+type Mutation {
+  createLayout(storeId: String!, input: HomeLayoutCreateInput!): HomeLayout!
+  updateLayout(id: String!, storeId: String!, input: HomeLayoutUpdateInput!): HomeLayout!
+  deleteLayout(id: String!, storeId: String!): Boolean!
+  
+  addLayoutComponent(layoutId: String!, storeId: String!, input: LayoutComponentCreateInput!): LayoutComponent!
+  updateLayoutComponent(id: String!, storeId: String!, input: LayoutComponentUpdateInput!): LayoutComponent!
+  deleteLayoutComponent(id: String!, storeId: String!): Boolean!
+  
+  createUser(input: UserCreateInput!): User!
+  updateUser(id: String!, input: UserUpdateInput!): User!
+  deleteUser(id: String!): Boolean!
 }

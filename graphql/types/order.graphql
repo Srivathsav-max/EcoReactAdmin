@@ -2,11 +2,14 @@ type Order {
   id: ID!
   storeId: String!
   store: Store!
+  customerId: String
+  customer: Customer
   orderItems: [OrderItem!]!
   isPaid: Boolean!
   phone: String!
   address: String!
-  status: String!
+  status: OrderStatus!
+  totalAmount: Decimal!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -25,6 +28,7 @@ type OrderItem {
 
 input OrderCreateInput {
   storeId: String!
+  customerId: String
   phone: String!
   address: String!
   items: [OrderItemCreateInput!]!
@@ -38,7 +42,7 @@ input OrderItemCreateInput {
 
 input OrderUpdateInput {
   isPaid: Boolean
-  status: String
+  status: OrderStatus
   phone: String
   address: String
 }
@@ -48,4 +52,15 @@ enum OrderStatus {
   PROCESSING
   COMPLETED
   CANCELLED
+}
+
+type Query {
+  orders(storeId: String!): [Order!]!
+  order(id: String!, storeId: String!): Order
+}
+
+type Mutation {
+  createOrder(input: OrderCreateInput!): Order!
+  updateOrder(id: String!, storeId: String!, input: OrderUpdateInput!): Order!
+  deleteOrder(id: String!, storeId: String!): Boolean!
 }

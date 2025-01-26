@@ -2,7 +2,7 @@ type Attribute {
   id: ID!
   name: String!
   code: String!
-  type: String!
+  type: AttributeType!
   isRequired: Boolean!
   isVisible: Boolean!
   position: Int!
@@ -62,17 +62,16 @@ type VariantOptionValue {
 input AttributeCreateInput {
   name: String!
   code: String!
-  type: String!
+  type: AttributeType!
   isRequired: Boolean
   isVisible: Boolean
   position: Int
-  storeId: String!
 }
 
 input AttributeUpdateInput {
   name: String
   code: String
-  type: String
+  type: AttributeType
   isRequired: Boolean
   isVisible: Boolean
   position: Int
@@ -82,7 +81,6 @@ input AttributeValueCreateInput {
   value: String!
   position: Int
   attributeId: String!
-  storeId: String!
 }
 
 input AttributeValueUpdateInput {
@@ -91,11 +89,10 @@ input AttributeValueUpdateInput {
 }
 
 input OptionTypeCreateInput {
-  storeId: String!
-  productId: String!
   name: String!
-  presentation: String!
+  presentation: String
   position: Int
+  productId: String!
 }
 
 input OptionTypeUpdateInput {
@@ -124,4 +121,33 @@ enum AttributeType {
   DATE
   SELECT
   MULTI_SELECT
+}
+
+type Query {
+  attributes(storeId: String!): [Attribute!]!
+  attribute(id: String!, storeId: String!): Attribute
+
+  attributeValues(storeId: String!, attributeId: String): [AttributeValue!]!
+  attributeValue(id: String!, storeId: String!): AttributeValue
+
+  optionTypes(storeId: String!, productId: String): [OptionType!]!
+  optionType(id: String!, storeId: String!): OptionType
+}
+
+type Mutation {
+  createAttribute(storeId: String!, input: AttributeCreateInput!): Attribute!
+  updateAttribute(id: String!, storeId: String!, input: AttributeUpdateInput!): Attribute!
+  deleteAttribute(id: String!, storeId: String!): Boolean!
+
+  createAttributeValue(storeId: String!, input: AttributeValueCreateInput!): AttributeValue!
+  updateAttributeValue(id: String!, storeId: String!, input: AttributeValueUpdateInput!): AttributeValue!
+  deleteAttributeValue(id: String!, storeId: String!): Boolean!
+
+  createOptionType(storeId: String!, input: OptionTypeCreateInput!): OptionType!
+  updateOptionType(id: String!, storeId: String!, input: OptionTypeUpdateInput!): OptionType!
+  deleteOptionType(id: String!, storeId: String!): Boolean!
+
+  createOptionValue(optionTypeId: String!, input: OptionValueCreateInput!): OptionValue!
+  updateOptionValue(id: String!, input: OptionValueUpdateInput!): OptionValue!
+  deleteOptionValue(id: String!): Boolean!
 }
