@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server';
 import { storage, ID, getMaskedImageUrl } from '@/lib/appwrite-config';
 import { getAdminSession } from '@/lib/auth';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+export const dynamic = 'force-dynamic'; 
+export const maxDuration = 30;
+export const runtime = 'nodejs'; 
+
 
 export async function POST(req: Request) {
   try {
