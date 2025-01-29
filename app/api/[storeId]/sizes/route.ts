@@ -60,12 +60,6 @@ export async function GET(
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const session = await getAdminSession();
-
-    if (!session) {
-      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
-    }
-
     if (!params.storeId) {
       return new NextResponse("Store id is required", { status: 400 });
     }
@@ -75,8 +69,12 @@ export async function GET(
         storeId: params.storeId,
       }
     });
+
+    console.log('Sizes fetched:', sizes); // Debug log
   
-    return NextResponse.json(sizes);
+    return NextResponse.json({
+      data: sizes
+    });
   } catch (error) {
     console.log('[SIZES_GET]', error);
     return new NextResponse("Internal error", { status: 500 });

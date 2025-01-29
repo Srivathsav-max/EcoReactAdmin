@@ -32,19 +32,59 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 
 import { columns } from "./columns";
+import { ProductColumn } from "./columns";
 import { useParams } from "next/navigation";
-import { useProducts } from "@/hooks/use-products";
 
 export function ProductsTableShell() {
   const params = useParams();
-  const { products, loading, error } = useProducts(params.storeId as string);
+  const [loading, setLoading] = React.useState(true);
+  const [data, setData] = React.useState<ProductColumn[]>([]);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
+  React.useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch(`/api/${params.storeId}/products`);
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to fetch products');
+        }
+
+        const formattedProducts = result.data.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          description: item.description || "",
+          price: new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD'
+          }).format(item.price || 0),
+          sku: item.sku || "",
+          stock: item.variants?.reduce((total: number, variant: any) => {
+            return total + (variant.stockItems?.[0]?.count || 0);
+          }, 0) || 0,
+          category: item.taxons?.[0]?.name || "Uncategorized",
+          isArchived: !item.isVisible,
+          createdAt: new Date(item.createdAt).toLocaleDateString(),
+          images: item.images || [],
+        }));
+
+        setData(formattedProducts);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [params.storeId]);
+
   const table = useReactTable({
-    data: products,
+    data,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -61,14 +101,6 @@ export function ProductsTableShell() {
       rowSelection,
     },
   });
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <p className="text-destructive">Error: {error}</p>
-      </div>
-    );
-  }
 
   if (loading) {
     return (

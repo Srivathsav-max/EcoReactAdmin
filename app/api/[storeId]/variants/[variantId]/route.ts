@@ -1,192 +1,131 @@
 import { NextResponse } from "next/server";
-import prismadb from "@/lib/prismadb";
 import { getAdminSession } from "@/lib/auth";
-
-export async function GET(
-  req: Request,
-  { params }: { params: { storeId: string, variantId: string } }
-) {
-  try {
-    const session = await getAdminSession();
-
-    if (!session) {
-      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
-    }
-
-    if (!params.variantId) {
-      return new NextResponse("Variant ID is required", { status: 400 });
-    }
-
-    const storeByUserId = await prismadb.store.findFirst({
-      where: {
-        id: params.storeId,
-        userId: session.userId,
-      }
-    });
-
-    if (!storeByUserId) {
-      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
-    }
-
-    const variant = await prismadb.variant.findFirst({
-      where: {
-        id: params.variantId,
-        product: {
-          storeId: params.storeId
-        }
-      },
-      include: {
-        stockItems: true,
-        color: true,
-        size: true,
-        images: true,
-        optionValues: {
-          include: {
-            optionValue: {
-              include: {
-                optionType: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    return NextResponse.json(variant);
-  } catch (error) {
-    console.log('[VARIANT_GET]', error);
-    return new NextResponse("Internal error", { status: 500 });
-  }
-}
+import prismadb from "@/lib/prismadb";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { storeId: string, variantId: string } }
+  { params }: { params: { storeId: string; variantId: string } }
 ) {
   try {
     const session = await getAdminSession();
 
     if (!session) {
-      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized"
+      }, { status: 401 });
     }
 
     const body = await req.json();
-    
-    const { 
-      name,
-      price,
-      colorId,
-      sizeId,
-      sku,
-      stockCount,
-      compareAtPrice,
-      costPrice,
-      allowBackorder,
-      lowStockAlert,
-      optionValues = []
-    } = body;
 
-    if (!params.variantId) {
-      return new NextResponse("Variant ID is required", { status: 400 });
-    }
-
-    const storeByUserId = await prismadb.store.findFirst({
-      where: {
-        id: params.storeId,
-        userId: session.userId,
-      }
-    });
-
-    if (!storeByUserId) {
-      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
-    }
-
-    await prismadb.variantOptionValue.deleteMany({
-      where: {
-        variantId: params.variantId,
-      }
-    });
-
-    const variant = await prismadb.variant.update({
+    // Update variant
+    const updatedVariant = await prismadb.variant.update({
       where: {
         id: params.variantId
       },
       data: {
-        name,
-        price,
-        colorId: colorId || null,
-        sizeId: sizeId || null,
-        sku: sku || null,
-        compareAtPrice: compareAtPrice || null,
-        costPrice: costPrice || null,
-        allowBackorder: allowBackorder || false,
-        lowStockAlert: lowStockAlert || null,
-        optionValues: {
-          createMany: {
-            data: optionValues.map((ov: { optionValueId: string }) => ({
-              optionValueId: ov.optionValueId,
-            }))
-          }
-        }
-      },
-      include: {
-        stockItems: true,
-        color: true,
-        size: true,
-        optionValues: {
-          include: {
-            optionValue: {
-              include: {
-                optionType: true
-              }
-            }
-          }
-        }
+        name: body.name,
+        sku: body.sku,
+        price: body.price,
+        costPrice: body.costPrice,
+        compareAtPrice: body.compareAtPrice,
+        colorId: body.colorId,
+        sizeId: body.sizeId,
+        isVisible: body.isVisible,
+        trackInventory: body.trackInventory,
+        minimumQuantity: body.minimumQuantity,
+        maximumQuantity: body.maximumQuantity,
+        weight: body.weight,
+        height: body.height,
+        width: body.width,
+        depth: body.depth,
+        allowBackorder: body.allowBackorder,
       }
     });
 
-    return NextResponse.json(variant);
+    // Update stock if provided
+    if (body.stockCount !== undefined) {
+      await prismadb.stockItem.upsert({
+        where: {
+          variantId_storeId: {
+            variantId: params.variantId,
+            storeId: params.storeId
+          }
+        },
+        create: {
+          variantId: params.variantId,
+          storeId: params.storeId,
+          count: body.stockCount,
+          stockStatus: body.stockCount > 0 ? 'in_stock' : 'out_of_stock'
+        },
+        update: {
+          count: body.stockCount,
+          stockStatus: body.stockCount > 0 ? 'in_stock' : 'out_of_stock'
+        }
+      });
+
+      // Create stock movement record
+      await prismadb.stockMovement.create({
+        data: {
+          variantId: params.variantId,
+          stockItemId: (await prismadb.stockItem.findUnique({
+            where: {
+              variantId_storeId: {
+                variantId: params.variantId,
+                storeId: params.storeId
+              }
+            }
+          }))!.id,
+          quantity: body.stockCount,
+          type: 'adjustment',
+          reason: 'Manual stock update'
+        }
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: updatedVariant
+    });
   } catch (error) {
-    console.log('[VARIANT_PATCH]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[VARIANT_PATCH]', error);
+    return NextResponse.json({
+      success: false,
+      message: "Internal error"
+    }, { status: 500 });
   }
 }
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { storeId: string, variantId: string } }
+  { params }: { params: { variantId: string } }
 ) {
   try {
     const session = await getAdminSession();
 
     if (!session) {
-      return new NextResponse("Unauthorized - Admin access required", { status: 403 });
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized"
+      }, { status: 401 });
     }
 
-    if (!params.variantId) {
-      return new NextResponse("Variant ID is required", { status: 400 });
-    }
-
-    const storeByUserId = await prismadb.store.findFirst({
-      where: {
-        id: params.storeId,
-        userId: session.userId,
-      }
-    });
-
-    if (!storeByUserId) {
-      return new NextResponse("Unauthorized - Store access denied", { status: 403 });
-    }
-
-    const variant = await prismadb.variant.delete({
+    // Delete variant (this will cascade delete related stock items and movements)
+    await prismadb.variant.delete({
       where: {
         id: params.variantId
       }
     });
-  
-    return NextResponse.json(variant);
+
+    return NextResponse.json({
+      success: true,
+      message: "Variant deleted"
+    });
   } catch (error) {
-    console.log('[VARIANT_DELETE]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[VARIANT_DELETE]', error);
+    return NextResponse.json({
+      success: false,
+      message: "Internal error"
+    }, { status: 500 });
   }
 }

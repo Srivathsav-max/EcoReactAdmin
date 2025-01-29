@@ -4,8 +4,11 @@ import * as z from "zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Taxonomy, Taxon } from "@prisma/client";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
+import axios from "axios";
+import { Plus } from "lucide-react"; // Add this import
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,18 +23,21 @@ import { Heading } from "@/components/ui/heading";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { AlertModal } from "@/components/modals/alert-modal";
-import { useTaxonomyMutations } from "@/hooks/use-taxonomy-mutations";
-import { TaxonomyDetails, Taxon } from "@/hooks/use-taxonomy-details";
 
 const formSchema = z.object({
   name: z.string().min(1),
-  description: z.string().optional(),
 });
 
 type TaxonomyFormValues = z.infer<typeof formSchema>;
 
+interface TaxonomyWithTaxons extends Taxonomy {
+  taxons: (Taxon & {
+    children?: Taxon[];
+  })[];
+}
+
 interface TaxonomyFormProps {
-  initialData: TaxonomyDetails;
+  initialData: TaxonomyWithTaxons | null;
 }
 
 export const TaxonomyForm: React.FC<TaxonomyFormProps> = ({
@@ -39,7 +45,6 @@ export const TaxonomyForm: React.FC<TaxonomyFormProps> = ({
 }) => {
   const params = useParams();
   const router = useRouter();
-  const { createTaxonomy, updateTaxonomy, deleteTaxonomy, loading: mutationLoading } = useTaxonomyMutations();
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -52,8 +57,7 @@ export const TaxonomyForm: React.FC<TaxonomyFormProps> = ({
   const form = useForm<TaxonomyFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: initialData?.name || '',
-      description: initialData?.description || ''
+      name: initialData?.name || ''
     }
   });
 
@@ -61,19 +65,14 @@ export const TaxonomyForm: React.FC<TaxonomyFormProps> = ({
     try {
       setLoading(true);
       if (initialData) {
-        await updateTaxonomy(params.storeId as string, params.taxonomyId as string, {
-          name: data.name,
-          description: data.description
-        });
+        await axios.patch(`/api/${params.storeId}/taxonomies/${params.taxonomyId}`, data);
       } else {
-        await createTaxonomy(params.storeId as string, {
-          name: data.name,
-          description: data.description
-        });
+        await axios.post(`/api/${params.storeId}/taxonomies`, data);
       }
+      router.refresh();
       router.push(`/${params.storeId}/taxonomies`);
       toast.success(toastMessage);
-    } catch (error) {
+    } catch (error: any) {
       toast.error('Something went wrong.');
     } finally {
       setLoading(false);
@@ -83,10 +82,11 @@ export const TaxonomyForm: React.FC<TaxonomyFormProps> = ({
   const onDelete = async () => {
     try {
       setLoading(true);
-      await deleteTaxonomy(params.storeId as string, params.taxonomyId as string);
+      await axios.delete(`/api/${params.storeId}/taxonomies/${params.taxonomyId}`);
+      router.refresh();
       router.push(`/${params.storeId}/taxonomies`);
       toast.success('Taxonomy deleted.');
-    } catch (error) {
+    } catch (error: any) {
       toast.error('Make sure you removed all products using this taxonomy first.');
     } finally {
       setLoading(false);
@@ -94,21 +94,19 @@ export const TaxonomyForm: React.FC<TaxonomyFormProps> = ({
     }
   };
 
-  const isLoading = loading || mutationLoading;
-
   return (
     <>
       <AlertModal 
         isOpen={open} 
         onClose={() => setOpen(false)}
         onConfirm={onDelete}
-        loading={isLoading}
+        loading={loading}
       />
       <div className="flex items-center justify-between">
         <Heading title={title} description={description} />
         {initialData && (
           <Button
-            disabled={isLoading}
+            disabled={loading}
             variant="destructive"
             size="sm"
             onClick={() => setOpen(true)}
@@ -128,32 +126,14 @@ export const TaxonomyForm: React.FC<TaxonomyFormProps> = ({
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input disabled={isLoading} placeholder="Taxonomy name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Input 
-                      disabled={isLoading} 
-                      placeholder="Taxonomy description" 
-                      {...field} 
-                      value={field.value || ''}
-                    />
+                    <Input disabled={loading} placeholder="Taxonomy name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
-          <Button disabled={isLoading} className="ml-auto" type="submit">
+          <Button disabled={loading} className="ml-auto" type="submit">
             {action}
           </Button>
         </form>

@@ -29,7 +29,9 @@ export async function GET(
       return new NextResponse("Store not found", { status: 404 });
     }
 
-    return NextResponse.json(store);
+    return NextResponse.json({
+      data: store
+    });
   } catch (error) {
     console.log('[STORE_GET]', error);
     return new NextResponse("Internal error", { status: 500 });

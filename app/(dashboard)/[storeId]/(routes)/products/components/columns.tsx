@@ -6,7 +6,18 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ProductColumn } from "@/hooks/use-products";
+
+export type ProductColumn = {
+  id: string;
+  name: string;
+  price: string;
+  category: string;
+  sku: string;
+  stock: number;
+  createdAt: string;
+  images: { url: string }[];
+  isArchived: boolean;
+};
 
 export const columns: ColumnDef<ProductColumn>[] = [
   {

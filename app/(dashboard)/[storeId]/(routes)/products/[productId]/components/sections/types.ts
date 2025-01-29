@@ -1,10 +1,23 @@
-import { NavigationTaxonomy, Product } from "@/types/models";
 import { UseFormReturn } from "react-hook-form";
 
+// Base types
+export interface Color {
+  id: string;
+  name: string;
+  value: string;
+}
+
+export interface Size {
+  id: string;
+  name: string;
+  value: string;
+}
+
+// Product form related types
 export interface ProductFormType {
   name: string;
   description: string;
-  images: { url: string; fileId: string }[];
+  images: { url: string; fileId: string; }[];
   price: number;
   brandId?: string;
   colorId?: string;
@@ -23,21 +36,59 @@ export interface ProductFormType {
   depth?: number;
   minimumQuantity: number;
   maximumQuantity?: number;
-  optionTypes: Array<{ name: string; presentation: string; position: number }>;
+  optionTypes: {
+    name: string;
+    presentation: string;
+    position: number;
+  }[];
 }
 
 export interface ProductFormProps {
-  initialData: Product | null;
-  brands: Array<{ id: string; name: string }>;
-  colors: Array<{ id: string; name: string }>;
-  sizes: Array<{ id: string; name: string }>;
-  taxonomies: NavigationTaxonomy[];
+  initialData: any;
+  brands: any[];
+  colors: Color[];
+  sizes: Size[];
+  taxonomies: any[];
   storeCurrency: string;
   storeLocale: string;
 }
 
-export interface ProductSpecificationsProps {
+export interface BasicInformationProps {
   loading: boolean;
   form: UseFormReturn<ProductFormType>;
-  taxonomies: NavigationTaxonomy[];
+  brands: any[];
+  colors: any[];
+  sizes: any[];
+  storeCurrency: string;
+}
+
+export interface ProductVariantsProps {
+  loading: boolean;
+  form: UseFormReturn<ProductFormType>;
+  colors: Color[];
+  sizes: Size[];
+}
+
+// Variant related types
+export interface VariantType {
+  id: string;
+  name: string;
+  sku: string;
+  price: number;
+  costPrice?: number;
+  compareAtPrice?: number;
+  stockCount?: number;
+  isVisible: boolean;
+  trackInventory: boolean;
+  minimumQuantity: number;
+  maximumQuantity?: number;
+  weight?: number;
+  height?: number;
+  width?: number;
+  depth?: number;
+  allowBackorder: boolean;
+  color?: Color;
+  size?: Size;
+  colorId?: string;
+  sizeId?: string;
 }

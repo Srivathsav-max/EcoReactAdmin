@@ -1,134 +1,144 @@
-"use client"
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ProductForm } from "./product-form"
-import ImageUpload from "@/components/ui/image-upload"
-import { useState } from "react"
-import { Brand, Image, Color, Size, NavigationTaxonomy } from "@/types/models"
-import { type Property } from "./properties-manager"
-import { ProductWithMetadata, StockManagerVariant } from "./types"
-import { ShippingManager } from "./shipping-manager"
-import { SeoManager } from "./seo-manager"
-import { StockManager } from "./stock-manager"
-import { PropertiesManager } from "./properties-manager"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { ProductFormType } from "./sections";
+import { UseFormReturn } from "react-hook-form";
+import {
+  BasicInformation,
+  ProductMedia,
+  ProductVariants,
+  ProductSpecifications,
+  ProductVisibility,
+} from "./sections";
+import { Brand, Color, Size, NavigationTaxonomy } from "@/types/models";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 interface ProductTabsProps {
-  stockItems?: any[];
-  properties?: Property[];
-  initialData: ProductWithMetadata | null;
+  form: UseFormReturn<ProductFormType>;
+  loading: boolean;
+  isSaving: boolean;
+  brands: Brand[];
   colors: Color[];
   sizes: Size[];
   taxonomies: NavigationTaxonomy[];
   storeCurrency: string;
-  storeLocale: string;
-  brands?: Brand[];
+  action: string;
 }
 
-export const ProductTabs: React.FC<ProductTabsProps> = ({
-  initialData,
+export const ProductTabs = ({
+  form,
+  loading,
+  isSaving,
+  brands,
   colors,
   sizes,
   taxonomies,
   storeCurrency,
-  storeLocale,
-  brands = [] // Provide empty array as default
-}) => {
-  const [activeTab, setActiveTab] = useState("details")
-
+  action
+}: ProductTabsProps) => {
+  // Debug logging for props
+  console.log('ProductTabs received props:', {
+    colors,
+    sizes,
+    brandsCount: brands.length,
+    taxonomiesCount: taxonomies.length
+  });
+  
   return (
-    <Tabs defaultValue="details" className="w-full" value={activeTab} onValueChange={setActiveTab}>
-      <TabsList className="grid w-full grid-cols-7">
-        <TabsTrigger value="details">Details</TabsTrigger>
-        <TabsTrigger value="images">Images</TabsTrigger>
-        <TabsTrigger value="variants">Variants</TabsTrigger>
-        <TabsTrigger value="stock">Stock</TabsTrigger>
-        <TabsTrigger value="properties">Properties</TabsTrigger>
-        <TabsTrigger value="shipping">Shipping</TabsTrigger>
-        <TabsTrigger value="seo">SEO</TabsTrigger>
-      </TabsList>
-      
-      <TabsContent value="details">
-        <ProductForm
-          initialData={initialData}
-          colors={colors}
-          sizes={sizes}
-          taxonomies={taxonomies}
-          storeCurrency={storeCurrency}
-          storeLocale={storeLocale}
-          brands={brands}
-        />
-      </TabsContent>
+    <div className={cn("space-y-6", isSaving && "opacity-50 pointer-events-none")}>
+      <Tabs defaultValue="general" className="space-y-4">
+        <TabsList className="bg-muted h-auto p-1 flex flex-wrap gap-1">
+          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="images">Images</TabsTrigger>
+          <TabsTrigger value="variants">Variants</TabsTrigger>
+          <TabsTrigger value="properties">Properties</TabsTrigger>
+          <TabsTrigger value="stock">Stock</TabsTrigger>
+          <TabsTrigger value="categories">Categories</TabsTrigger>
+        </TabsList>
 
-      <TabsContent value="images">
-        <div className="space-y-4">
-          <div className="grid gap-4">
-            <ImageUpload
-              value={initialData?.images?.map(img => img.url) || []}
-              onChange={(url: string) => {
-                // TODO: Implement image upload handling
-                console.log("Image upload:", url);
-              }}
-              onRemove={() => {
-                // TODO: Implement image removal
-                console.log("Remove image");
-              }}
+        <TabsContent value="general" className="m-0">
+          <div className="rounded-lg border bg-card p-4 space-y-8">
+            <BasicInformation
+              form={form}
+              loading={loading}
+              brands={brands}
+              colors={colors}
+              sizes={sizes}
+              storeCurrency={storeCurrency}
+            />
+            <ProductVisibility
+              form={form}
+              loading={loading}
             />
           </div>
-        </div>
-      </TabsContent>
+        </TabsContent>
 
-      <TabsContent value="variants">
-        <div className="space-y-4">
-          {/* Variant management will be implemented here */}
-        </div>
-      </TabsContent>
-
-      <TabsContent value="stock">
-        <div className="space-y-4">
-          {initialData?.variants && (
-            <StockManager variants={initialData.variants} />
-          )}
-        </div>
-      </TabsContent>
-
-      <TabsContent value="properties">
-        <div className="space-y-4">
-          <PropertiesManager
-            properties={initialData?.properties || []}
-          />
-        </div>
-      </TabsContent>
-
-      <TabsContent value="shipping">
-        <div className="space-y-4">
-          {initialData && (
-            <ShippingManager
-              initialData={{
-                weight: initialData.weight,
-                height: initialData.height,
-                width: initialData.width,
-                depth: initialData.depth,
-                shippingCategory: initialData.shippingCategory
-              }}
+        <TabsContent value="images" className="m-0">
+          <div className="rounded-lg border bg-card p-4 space-y-8">
+            <ProductMedia
+              form={form}
+              loading={loading}
             />
-          )}
-        </div>
-      </TabsContent>
+          </div>
+        </TabsContent>
 
-      <TabsContent value="seo">
-        <div className="space-y-4">
-          {initialData && (
-            <SeoManager
-              initialData={{
-                slug: initialData.slug,
-                metaTitle: initialData.metaTitle,
-                metaDescription: initialData.metaDescription,
-                metaKeywords: initialData.metaKeywords
-              }}
+        <TabsContent value="variants" className="m-0">
+          <div className="rounded-lg border bg-card p-4 space-y-8">
+            <ProductVariants
+              form={form}
+              loading={loading}
+              colors={colors}
+              sizes={sizes}
             />
-          )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="properties" className="m-0">
+          <div className="rounded-lg border bg-card p-4 space-y-8">
+            <div className="flex flex-col gap-4">
+              {/* Add custom properties fields here */}
+              <p className="text-muted-foreground">Product properties and attributes can be managed here.</p>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="stock" className="m-0">
+          <div className="rounded-lg border bg-card p-4 space-y-8">
+            <div className="flex flex-col gap-4">
+              {/* Add stock management fields here */}
+              <p className="text-muted-foreground">Stock levels and inventory management options.</p>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="categories" className="m-0">
+          <div className="rounded-lg border bg-card p-4 space-y-8">
+            <ProductSpecifications
+              form={form}
+              loading={loading}
+              taxonomies={taxonomies}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      <div className="sticky bottom-0 bg-white border-t p-4 mt-6 -mx-6 -mb-6">
+        <div className="flex items-center justify-end max-w-7xl mx-auto">
+          <Button
+            disabled={isSaving}
+            type="submit"
+            size="lg"
+            className="min-w-[150px] bg-primary hover:bg-primary/90"
+          >
+            {isSaving ? (
+              <div className="flex items-center gap-2">
+                <Spinner size={16} className="text-white" />
+                <span>Saving...</span>
+              </div>
+            ) : action}
+          </Button>
         </div>
-      </TabsContent>
-    </Tabs>
-  )
+      </div>
+    </div>
+  );
 }

@@ -7,12 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { EyeIcon, EyeOffIcon, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useSignUp, useValidateEmail } from "@/lib/graphql/hooks/useAuth";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 export default function SignUpPage() {
-  const router = useRouter();
+  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
@@ -22,9 +19,6 @@ export default function SignUpPage() {
     password: "",
     confirmPassword: "",
   });
-
-  const { handleSignUp, loading } = useSignUp();
-  const { checkEmail } = useValidateEmail();
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -41,25 +35,34 @@ export default function SignUpPage() {
       return;
     }
 
-    // Check if email exists before signing up
-    const emailCheck = await checkEmail(formData.email);
-    if (emailCheck.exists) {
-      setError("Email already exists");
-      return;
-    }
+    try {
+      setLoading(true);
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
-    const result = await handleSignUp(formData.email, formData.password);
-    
-    if (result?.error) {
-      setError(result.error);
-      return;
-    }
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Something went wrong');
+      }
 
-    if (result?.user) {
       setSuccess('Account created successfully!');
       setTimeout(() => {
-        router.push('/sign-in');
+        window.location.href = '/sign-in';
       }, 1500);
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('An unknown error occurred');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -168,12 +171,12 @@ export default function SignUpPage() {
         <CardFooter>
           <p className="text-center text-sm text-gray-600 w-full">
             Already have an account?{' '}
-            <Link
-              href="/sign-in"
+            <button
+              onClick={() => window.location.href = '/sign-in'}
               className="font-medium text-blue-600 hover:text-blue-500"
             >
               Sign in
-            </Link>
+            </button>
           </p>
         </CardFooter>
       </Card>
