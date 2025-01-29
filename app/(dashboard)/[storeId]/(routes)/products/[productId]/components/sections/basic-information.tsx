@@ -10,8 +10,18 @@ export const BasicInformation: React.FC<BasicInformationProps> = ({
   loading,
   form,
   brands,
+  colors,
+  sizes,
   storeCurrency,
 }) => {
+  const safeColors = Array.isArray(colors) ? colors : [];
+  const safeBrands = Array.isArray(brands) ? brands : [];
+  const safeSizes = Array.isArray(sizes) ? sizes : [];
+
+  const selectedBrand = form.watch("brandId");
+  const selectedColor = form.watch("colorId");
+  const selectedSize = form.watch("sizeId");
+
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
       <FormField
@@ -71,25 +81,42 @@ export const BasicInformation: React.FC<BasicInformationProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>Brand</FormLabel>
-            <Select 
-              disabled={loading} 
-              onValueChange={field.onChange} 
-              value={field.value || ""} 
-              defaultValue={field.value || ""}
-            >
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue defaultValue="" placeholder="Select a brand" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {brands.map((brand) => (
-                  <SelectItem key={brand.id} value={brand.id}>
-                    {brand.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div>
+              <Select 
+                disabled={loading} 
+                onValueChange={field.onChange} 
+                value={field.value?.toString() || ""} 
+                defaultValue={field.value?.toString() || ""}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue 
+                      placeholder={loading ? "Loading brands..." : !safeBrands.length ? "No brands available" : "Select a brand"}
+                    >
+                      {selectedBrand && safeBrands.find(b => b.id.toString() === selectedBrand.toString())?.name}
+                    </SelectValue>
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {loading ? (
+                    <SelectItem value="" disabled>Loading...</SelectItem>
+                  ) : !safeBrands.length ? (
+                    <SelectItem value="" disabled>No brands available</SelectItem>
+                  ) : (
+                    safeBrands.map((brand) => (
+                      <SelectItem key={brand.id} value={brand.id.toString()}>
+                        {brand.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {!loading && !safeBrands.length && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  No brands are available for this store. Please add brands first.
+                </p>
+              )}
+            </div>
             <FormMessage />
           </FormItem>
         )}
@@ -153,6 +180,99 @@ export const BasicInformation: React.FC<BasicInformationProps> = ({
                 <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="colorId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Color</FormLabel>
+            <div>
+              <Select 
+                disabled={loading} 
+                onValueChange={field.onChange} 
+                value={field.value?.toString() || ""} 
+                defaultValue={field.value?.toString() || ""}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue 
+                      placeholder={loading ? "Loading colors..." : !safeColors.length ? "No colors available" : "Select a color"}
+                    >
+                      {selectedColor && safeColors.find(c => c.id.toString() === selectedColor.toString())?.name}
+                    </SelectValue>
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {loading ? (
+                    <SelectItem value="" disabled>Loading...</SelectItem>
+                  ) : !safeColors.length ? (
+                    <SelectItem value="" disabled>No colors available</SelectItem>
+                  ) : (
+                    safeColors.map((color) => (
+                      <SelectItem key={color.id} value={color.id.toString()}>
+                        {color.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {!loading && !colors?.length && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  No colors are available for this store. Please add colors first.
+                </p>
+              )}
+            </div>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="sizeId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Size</FormLabel>
+            <div>
+              <Select 
+                disabled={loading} 
+                onValueChange={field.onChange} 
+                value={field.value?.toString() || ""} 
+                defaultValue={field.value?.toString() || ""}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue 
+                      placeholder={loading ? "Loading sizes..." : !safeSizes.length ? "No sizes available" : "Select a size"}
+                    >
+                      {selectedSize && safeSizes.find(s => s.id.toString() === selectedSize.toString())?.name}
+                    </SelectValue>
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {loading ? (
+                    <SelectItem value="" disabled>Loading...</SelectItem>
+                  ) : !safeSizes.length ? (
+                    <SelectItem value="" disabled>No sizes available</SelectItem>
+                  ) : (
+                    safeSizes.map((size) => (
+                      <SelectItem key={size.id} value={size.id.toString()}>
+                        {size.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {!loading && !sizes?.length && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  No sizes are available for this store. Please add sizes first.
+                </p>
+              )}
+            </div>
             <FormMessage />
           </FormItem>
         )}

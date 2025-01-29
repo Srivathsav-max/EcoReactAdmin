@@ -28,10 +28,7 @@ const nextConfig = {
     }
   },
   productionBrowserSourceMaps: false,
-  poweredByHeader: false,
-  eslint: {
-    ignoreDuringBuilds: true
-  }
+  poweredByHeader: false
 };
 
 module.exports = nextConfig;

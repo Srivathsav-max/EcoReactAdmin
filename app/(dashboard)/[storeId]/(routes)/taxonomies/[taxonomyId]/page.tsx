@@ -1,41 +1,49 @@
-'use client';
-
-import { Loader } from "@/components/ui/loader";
+import prismadb from "@/lib/prismadb";
 import { TaxonomyForm } from "./components/taxonomy-form";
 import { TaxonForm } from "./components/taxon-form";
 import { TaxonTree } from "@/components/ui/taxon-tree";
-import { useTaxonomyDetails } from "@/hooks/use-taxonomy-details";
-import { useParams } from "next/navigation";
 
-const TaxonomyPage = () => {
-  const params = useParams();
-  const { data: taxonomy, loading, error } = useTaxonomyDetails(
-    params.storeId as string,
-    params.taxonomyId as string
-  );
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-destructive">Error: {error}</p>
-      </div>
-    );
-  }
+const TaxonomyPage = async ({
+  params
+}: {
+  params: { taxonomyId: string, storeId: string }
+}) => {
+  // Get the taxonomy with root-level taxons and their complete hierarchy
+  const taxonomy = await prismadb.taxonomy.findUnique({
+    where: {
+      id: params.taxonomyId
+    },
+    include: {
+      taxons: {
+        where: {
+          parentId: null // Only get root level taxons
+        },
+        include: {
+          children: {
+            include: {
+              children: {
+                include: {
+                  children: true // Goes 3 levels deep
+                }
+              }
+            }
+          },
+          _count: {
+            select: {
+              products: true
+            }
+          }
+        },
+        orderBy: [
+          { position: 'asc' },
+          { createdAt: 'desc' }
+        ]
+      }
+    }
+  });
 
   if (!taxonomy) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Taxonomy not found.</p>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -46,8 +54,8 @@ const TaxonomyPage = () => {
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Taxons in {taxonomy.name}</h2>
             <TaxonForm 
-              taxonomyId={params.taxonomyId as string}
-              storeId={params.storeId as string}
+              taxonomyId={params.taxonomyId}
+              storeId={params.storeId}
             />
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm">
@@ -68,6 +76,6 @@ const TaxonomyPage = () => {
       </div>
     </div>
   );
-};
+}
 
 export default TaxonomyPage;

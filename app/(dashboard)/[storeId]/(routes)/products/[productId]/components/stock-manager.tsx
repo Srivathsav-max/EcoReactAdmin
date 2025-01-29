@@ -17,10 +17,22 @@ import {
   TableRow 
 } from "@/components/ui/table"
 
-import { StockItem, StockManagerVariant } from './types';
+interface StockItem {
+  id: string
+  count: number
+  backorderable: boolean
+  variantId: string
+}
+
+interface Variant {
+  id: string
+  name: string
+  sku: string
+  stockItems: StockItem[]
+}
 
 interface StockManagerProps {
-  variants: StockManagerVariant[]
+  variants: Variant[]
 }
 
 export const StockManager: React.FC<StockManagerProps> = ({

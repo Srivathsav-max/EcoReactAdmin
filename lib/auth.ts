@@ -164,7 +164,3 @@ export function getAuthCookie(token: string, role: 'admin' | 'customer') {
     expires: new Date(Date.now() + (role === 'admin' ? 7 : 30) * 24 * 60 * 60 * 1000)
   };
 }
-
-export const getSession = async () => {
-  return getAdminSession();
-};

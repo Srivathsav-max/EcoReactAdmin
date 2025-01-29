@@ -51,6 +51,8 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [testDataOpen, setTestDataOpen] = useState(false);
+  const [testDataLoading, setTestDataLoading] = useState(false);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(formSchema),
@@ -76,6 +78,20 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({
     }
   };
 
+  const loadTestData = async () => {
+    try {
+      setTestDataLoading(true);
+      await axios.post(`/api/${params.storeId}/test-data`);
+      router.refresh();
+      toast.success('Test data loaded successfully.');
+    } catch (error) {
+      toast.error('Something went wrong loading test data.');
+    } finally {
+      setTestDataLoading(false);
+      setTestDataOpen(false);
+    }
+  };
+
   const onDelete = async () => {
     try {
       setLoading(true);
@@ -98,11 +114,19 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({
 
   return (
     <>
-      <AlertModal 
-        isOpen={open} 
+      <AlertModal
+        isOpen={open}
         onClose={() => setOpen(false)}
         onConfirm={onDelete}
         loading={loading}
+      />
+      <AlertModal
+        isOpen={testDataOpen}
+        onClose={() => setTestDataOpen(false)}
+        onConfirm={loadTestData}
+        loading={testDataLoading}
+        title="Load Test Data"
+        description="This will add sample data to your store. This action cannot be undone. Are you sure you want to continue?"
       />
       <div className="flex items-center justify-between">
         <Heading
@@ -120,6 +144,14 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({
               Visit Store
             </Button>
           )}
+          <Button
+            disabled={loading || testDataLoading}
+            variant="secondary"
+            size="sm"
+            onClick={() => setTestDataOpen(true)}
+          >
+            Load Test Data
+          </Button>
           <Button
             disabled={loading}
             variant="destructive"

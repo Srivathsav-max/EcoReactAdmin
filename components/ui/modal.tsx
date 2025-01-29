@@ -24,8 +24,8 @@ export const Modal = ({
   children
 }: ModalProps) => {
   return (
-    <Dialog defaultOpen={isOpen} open={isOpen}>
-      <DialogContent onPointerDownOutside={onClose} onEscapeKeyDown={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent onInteractOutside={onClose} onEscapeKeyDown={onClose}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>

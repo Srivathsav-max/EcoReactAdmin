@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
 import { deleteFile } from "@/lib/appwrite-config";
 import { getAdminSession } from "@/lib/auth";
-import type { Image, Size, Color } from "@prisma/client";
 
 export async function GET(
   _req: Request,
@@ -23,20 +22,6 @@ export async function GET(
         success: false,
         message: "Product ID is required"
       }, { status: 400 });
-    }
-
-    const storeByUserId = await prismadb.store.findFirst({
-      where: {
-        id: params.storeId,
-        userId: session.userId,
-      }
-    });
-
-    if (!storeByUserId) {
-      return NextResponse.json({
-        success: false,
-        message: "Unauthorized access to this store"
-      }, { status: 403 });
     }
 
     const product = await prismadb.product.findUnique({
@@ -106,20 +91,6 @@ export async function PATCH(
       }, { status: 401 });
     }
 
-    const storeByUserId = await prismadb.store.findFirst({
-      where: {
-        id: params.storeId,
-        userId: session.userId,
-      }
-    });
-
-    if (!storeByUserId) {
-      return NextResponse.json({
-        success: false,
-        message: "Unauthorized access to this store"
-      }, { status: 403 });
-    }
-
     const body = await req.json();
 
     const { 
@@ -152,9 +123,17 @@ export async function PATCH(
       }, { status: 400 });
     }
 
+    // Get current product with its option types and values
     const currentProduct = await prismadb.product.findUnique({
       where: { id: params.productId },
-      include: { images: true }
+      include: {
+        images: true,
+        optionTypes: {
+          include: {
+            optionValues: true
+          }
+        }
+      }
     });
 
     if (!currentProduct) {
@@ -179,7 +158,8 @@ export async function PATCH(
     // Generate slug from name if name is being updated
     const slug = name ? name.toLowerCase().replace(/[^a-z0-9]/g, '-') : undefined;
 
-    const updatedProduct = await prismadb.product.update({
+    // Update basic product information first
+    await prismadb.product.update({
       where: {
         id: params.productId
       },
@@ -213,24 +193,109 @@ export async function PATCH(
             },
           },
         }),
-        ...(optionTypes && {
-          optionTypes: {
-            deleteMany: {},
-            createMany: {
-              data: optionTypes.map((ot: any) => ({
-                name: ot.name,
-                presentation: ot.presentation,
-                position: ot.position,
-                storeId: params.storeId,
-              })),
-            },
-          },
-        }),
         ...(taxons && {
           taxons: {
             set: taxons.map((taxonId: string) => ({ id: taxonId })),
           },
         }),
+      }
+    });
+
+    // Handle option types and their values separately
+    if (optionTypes && optionTypes.length > 0) {
+      await prismadb.$transaction(async (tx) => {
+        // Get all existing option types and their values
+        const existingOptionTypes = await tx.optionType.findMany({
+          where: { productId: params.productId },
+          include: {
+            optionValues: {
+              include: {
+                variants: true
+              }
+            }
+          }
+        });
+
+        // Delete all variant relationships first
+        await tx.variantOptionValue.deleteMany({
+          where: {
+            optionValue: {
+              optionType: {
+                productId: params.productId
+              }
+            }
+          }
+        });
+
+        // Delete all option values
+        await tx.optionValue.deleteMany({
+          where: {
+            optionType: {
+              productId: params.productId
+            }
+          }
+        });
+
+        // Delete all option types
+        await tx.optionType.deleteMany({
+          where: {
+            productId: params.productId
+          }
+        });
+
+        // Create new option types with their values
+        for (const ot of optionTypes) {
+          await tx.optionType.create({
+            data: {
+              name: ot.name,
+              presentation: ot.presentation,
+              position: ot.position,
+              storeId: params.storeId,
+              productId: params.productId,
+              optionValues: {
+                create: (ot.optionValues || []).map((ov: any) => ({
+                  name: ov.name,
+                  presentation: ov.presentation,
+                  position: ov.position
+                }))
+              }
+            }
+          });
+        }
+      });
+    }
+
+    // Get updated product with all relations
+    const updatedProduct = await prismadb.product.findUnique({
+      where: {
+        id: params.productId
+      },
+      include: {
+        images: true,
+        brand: true,
+        variants: {
+          include: {
+            images: true,
+            optionValues: {
+              include: {
+                optionValue: {
+                  include: {
+                    optionType: true
+                  }
+                }
+              }
+            },
+            stockItems: true,
+            size: true,
+            color: true,
+          }
+        },
+        taxons: true,
+        optionTypes: {
+          include: {
+            optionValues: true
+          }
+        }
       }
     });
 
@@ -268,20 +333,6 @@ export async function DELETE(
       }, { status: 400 });
     }
 
-    const storeByUserId = await prismadb.store.findFirst({
-      where: {
-        id: params.storeId,
-        userId: session.userId,
-      }
-    });
-
-    if (!storeByUserId) {
-      return NextResponse.json({
-        success: false,
-        message: "Unauthorized access to this store"
-      }, { status: 403 });
-    }
-
     const product = await prismadb.product.findUnique({
       where: { id: params.productId },
       include: { images: true }
@@ -303,7 +354,7 @@ export async function DELETE(
       }
     }
 
-    // Delete the product
+    // Delete the product (this will cascade delete option types and variants)
     await prismadb.product.delete({
       where: {
         id: params.productId

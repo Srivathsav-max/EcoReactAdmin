@@ -64,7 +64,9 @@ export async function GET(
       }
     });
 
-    return NextResponse.json(brands);
+    return NextResponse.json({
+      data: brands
+    });
   } catch (error) {
     console.log('[BRANDS_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
@@ -155,4 +157,4 @@ export async function PATCH(
     console.log('[BRAND_PATCH]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-} 
+}
