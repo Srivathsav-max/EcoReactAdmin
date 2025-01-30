@@ -211,6 +211,7 @@ export interface Product {
   status: string;
   isVisible: boolean;
   hasVariants: boolean;
+  storeId: string;
   images: Image[];
   brand: Brand | null;
   variants: Variant[];

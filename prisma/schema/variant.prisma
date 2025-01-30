@@ -1,0 +1,100 @@
+model Variant {
+  id              String               @id @default(uuid())
+  name            String
+  productId       String
+  product         Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku             String               @unique
+  price           Decimal
+  costPrice       Decimal?
+  compareAtPrice  Decimal?
+  position        Int                  @default(0)
+  trackInventory  Boolean              @default(true)
+  weight          Float?
+  height          Float?
+  width           Float?
+  depth           Float?
+  optionValues    VariantOptionValue[]
+  stockItems      StockItem[]
+  orderItems      OrderItem[]
+  images          Image[]              @relation("VariantImages")
+  size            Size?                @relation(fields: [sizeId], references: [id])
+  sizeId          String?
+  color           Color?               @relation(fields: [colorId], references: [id])
+  colorId         String?
+  allowBackorder  Boolean              @default(false)
+  lowStockAlert   Int?
+  stockMovements  StockMovement[]
+  barcode         String?              @unique
+  isVisible       Boolean              @default(true)
+  isDefault       Boolean              @default(false)
+  minimumQuantity Int                  @default(1)
+  maximumQuantity Int?
+  taxRate         Decimal?             @default(0)
+  dimensions      Json?
+  customFields    Json?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([productId])
+  @@index([sizeId])
+  @@index([colorId])
+}
+
+model OptionValue {
+  id           String               @id @default(uuid())
+  name         String
+  presentation String
+  position     Int                  @default(0)
+  optionType   OptionType           @relation("OptionTypeToValues", fields: [optionTypeId], references: [id])
+  optionTypeId String
+  variants     VariantOptionValue[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([optionTypeId])
+}
+
+model VariantOptionValue {
+  id            String      @id @default(uuid())
+  variantId     String
+  variant       Variant     @relation(fields: [variantId], references: [id])
+  optionValueId String
+  optionValue   OptionValue @relation(fields: [optionValueId], references: [id])
+
+  @@unique([variantId, optionValueId])
+}
+
+model StockItem {
+  id             String          @id @default(uuid())
+  variantId      String
+  variant        Variant         @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  storeId        String
+  store          Store           @relation(fields: [storeId], references: [id])
+  count          Int             @default(0)
+  stockStatus    String          @default("in_stock")
+  reserved       Int             @default(0)
+  backorderedQty Int             @default(0)
+  stockMovements StockMovement[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @default(now())
+
+  @@unique([variantId, storeId])
+  @@index([variantId])
+  @@index([storeId])
+}
+
+model StockMovement {
+  id          String    @id @default(uuid())
+  variantId   String
+  variant     Variant   @relation(fields: [variantId], references: [id])
+  stockItemId String
+  stockItem   StockItem @relation(fields: [stockItemId], references: [id])
+  quantity    Int
+  type        String
+  reason      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([variantId])
+  @@index([stockItemId])
+}
