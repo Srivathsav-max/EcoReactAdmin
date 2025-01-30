@@ -1,0 +1,139 @@
+model Product {
+  id               String            @id @default(uuid())
+  storeId          String
+  store            Store             @relation("StoreToProduct", fields: [storeId], references: [id])
+  name             String
+  slug             String            @unique
+  description      String?
+  metaTitle        String?
+  metaDescription  String?
+  metaKeywords     String?
+  sku              String?           @unique
+  price            Decimal?
+  costPrice        Decimal?
+  compareAtPrice   Decimal?
+  status           String            @default("draft")
+  shortDescription String?
+  isVisible        Boolean           @default(true)
+  isPromotionable  Boolean           @default(true)
+  isVirtual        Boolean           @default(false)
+  hasVariants      Boolean           @default(true)
+  minimumQuantity  Int               @default(1)
+  maximumQuantity  Int?
+  tags             String[]
+  barcode          String?           @unique
+  countryOfOrigin  String?
+  warrantyInfo     String?
+  brand            Brand?            @relation(fields: [brandId], references: [id])
+  brandId          String?
+  taxRate          Decimal?          @default(0)
+  availableOn      DateTime?
+  discontinueOn    DateTime?
+  taxCategory      String?
+  shippingCategory String?
+  weight           Float?
+  height           Float?
+  width            Float?
+  depth            Float?
+  isMaster         Boolean           @default(true)
+  variants         Variant[]
+  optionTypes      OptionType[]      @relation("ProductToOptionType")
+  properties       ProductProperty[]
+  images           Image[]
+  taxons           Taxon[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  reviews          ProductReview[]
+
+  @@index([storeId])
+  @@index([slug])
+  @@index([brandId])
+}
+
+model Size {
+  id        String    @id @default(uuid())
+  storeId   String
+  store     Store     @relation("StoreToSize", fields: [storeId], references: [id])
+  name      String
+  value     String
+  variants  Variant[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([storeId])
+}
+
+model Color {
+  id        String    @id @default(uuid())
+  storeId   String
+  store     Store     @relation("StoreToColor", fields: [storeId], references: [id])
+  name      String
+  value     String
+  variants  Variant[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+
+  @@index([storeId])
+}
+
+model Image {
+  id        String   @id @default(uuid())
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId String?
+  variant   Variant? @relation("VariantImages", fields: [variantId], references: [id], onDelete: Cascade)
+  url       String
+  position  Int      @default(0)
+  alt       String?
+  fileId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([variantId])
+}
+
+model Brand {
+  id          String    @id @default(uuid())
+  storeId     String
+  store       Store     @relation("StoreToBrand", fields: [storeId], references: [id])
+  name        String
+  slug        String    @unique
+  description String?
+  logoUrl     String?
+  website     String?
+  products    Product[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([storeId])
+}
+
+model ProductProperty {
+  id        String  @id @default(uuid())
+  name      String
+  value     String
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  position  Int     @default(0)
+
+  @@index([productId])
+}
+
+model ProductReview {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  rating     Int
+  title      String?
+  content    String
+  status     String   @default("pending") // pending, approved, rejected
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([productId])
+  @@index([customerId])
+}

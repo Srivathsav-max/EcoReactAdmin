@@ -1,0 +1,106 @@
+model Taxonomy {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  storeId     String
+  store       Store    @relation("StoreToTaxonomy", fields: [storeId], references: [id])
+  taxons      Taxon[]  @relation("TaxonomyToTaxon")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+
+  @@index([storeId])
+}
+
+model Taxon {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  position    Int     @default(0)
+  permalink   String?
+
+  taxonomyId String
+  taxonomy   Taxonomy @relation("TaxonomyToTaxon", fields: [taxonomyId], references: [id], onDelete: Cascade)
+
+  billboard   Billboard? @relation("BillboardToTaxon", fields: [billboardId], references: [id])
+  billboardId String?
+
+  parentId String?
+  parent   Taxon?  @relation("TaxonToTaxon", fields: [parentId], references: [id])
+  children Taxon[] @relation("TaxonToTaxon")
+
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@index([taxonomyId])
+  @@index([parentId])
+  @@index([billboardId])
+}
+
+model Attribute {
+  id         String           @id @default(uuid())
+  name       String
+  code       String
+  type       String
+  isRequired Boolean          @default(false)
+  isVisible  Boolean          @default(true)
+  position   Int             @default(0)
+  storeId    String
+  store      Store            @relation("StoreToAttribute", fields: [storeId], references: [id], onDelete: Cascade)
+  values     AttributeValue[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([storeId])
+}
+
+model AttributeValue {
+  id          String    @id @default(uuid())
+  value       String
+  position    Int       @default(0)
+  attributeId String
+  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  storeId     String
+  store       Store     @relation("StoreToAttributeValue", fields: [storeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([attributeId])
+  @@index([storeId])
+}
+
+model OptionType {
+  id           String        @id @default(uuid())
+  storeId      String
+  productId    String
+  name         String
+  presentation String
+  position     Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  store        Store        @relation("StoreToOptionType", fields: [storeId], references: [id], onDelete: Cascade)
+  product      Product      @relation("ProductToOptionType", fields: [productId], references: [id], onDelete: Cascade)
+  optionValues OptionValue[] @relation("OptionTypeToValues")
+
+  @@index([storeId])
+  @@index([productId])
+}
+
+model Supplier {
+  id          String   @id @default(uuid())
+  storeId     String
+  store       Store    @relation("StoreToSupplier", fields: [storeId], references: [id])
+  name        String
+  code        String   @unique
+  email       String?
+  phone       String?
+  address     String?
+  website     String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([storeId])
+}
