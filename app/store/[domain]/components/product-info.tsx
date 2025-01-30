@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { ShoppingCart, Minus, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShoppingCart, Minus, Plus, Check } from "lucide-react";
 import { type Product, type Variant } from "@/types/models";
 import { Currency } from "@/components/ui/currency";
 import { Button } from "@/components/ui/button";
+import useCart from "@/hooks/use-cart";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface ProductInfoProps {
   product: Product;
@@ -15,39 +18,34 @@ export const ProductInfo: React.FC<ProductInfoProps> = ({
   product,
   onVariantChange
 }) => {
-  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(
-    product.variants.length > 0 ? product.variants[0] : null
-  );
+  const cart = useCart();
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
 
-  // Group option values by option type
-  const optionGroups = product.optionTypes.map(optionType => {
-    const values = selectedVariant?.optionValues.filter(ov => 
-      ov.optionValue.optionType.id === optionType.id
-    ) || [];
-
-    return {
-      type: optionType,
-      values
-    };
-  });
-
-  const handleOptionChange = (optionTypeId: string, optionValueId: string) => {
-    // Find variant that matches all current options plus the new selection
-    const newVariant = product.variants.find(variant => {
-      return variant.optionValues.every(ov => {
-        if (ov.optionValue.optionType.id === optionTypeId) {
-          return ov.optionValue.id === optionValueId;
-        }
-        return selectedVariant?.optionValues.some(selectedOv => 
-          selectedOv.optionValue.id === ov.optionValue.id
-        );
-      });
+  // Get available variants with their options
+  const availableVariants = product.variants
+    .filter(variant => variant.isVisible)
+    .sort((a, b) => {
+      // First sort by in stock status
+      const aInStock = a.stockItems.some(item => item.count > 0);
+      const bInStock = b.stockItems.some(item => item.count > 0);
+      if (aInStock !== bInStock) return bInStock ? 1 : -1;
+      
+      // Then sort by price
+      return a.price - b.price;
     });
 
-    if (newVariant) {
-      setSelectedVariant(newVariant);
-      onVariantChange?.(newVariant);
+  useEffect(() => {
+    onVariantChange?.(selectedVariant);
+  }, [selectedVariant, onVariantChange]);
+
+  const handleVariantSelect = (variant: Variant) => {
+    // If clicking the already selected variant, deselect it
+    if (selectedVariant?.id === variant.id) {
+      setSelectedVariant(null);
+    } else {
+      setSelectedVariant(variant);
     }
   };
 
@@ -59,99 +57,132 @@ export const ProductInfo: React.FC<ProductInfoProps> = ({
     setQuantity(Math.min(Math.max(1, newQuantity), max));
   };
 
+  const handleAddToCart = async () => {
+    const variantToAdd = selectedVariant || product;
+    if (!variantToAdd) return;
+
+    setAddingToCart(true);
+    cart.addItem({
+      id: variantToAdd.id,
+      name: variantToAdd.name || product.name,
+      price: variantToAdd.price || product.price,
+      image: variantToAdd.images?.[0]?.url || product.images?.[0]?.url || '',
+      quantity: quantity
+    });
+    setTimeout(() => setAddingToCart(false), 600);
+  };
+
   const currentPrice = selectedVariant?.price || product.price;
   const compareAtPrice = selectedVariant?.compareAtPrice || null;
   const inStock = selectedVariant 
     ? selectedVariant.stockItems.some(item => item.count > 0)
-    : product.variants.length === 0;
+    : true; // Base product is always considered in stock
 
   const discount = compareAtPrice && currentPrice 
     ? Math.round((1 - currentPrice / compareAtPrice) * 100)
     : null;
 
   return (
-    <div className="flex flex-col">
+    <Card className="p-6 space-y-8">
       {/* Brand name */}
       {product.brand && (
-        <div className="text-lg text-gray-500 mb-2">
-          {product.brand.name}
+        <div className="inline-block bg-gray-100 px-3 py-1 rounded-full">
+          <span className="text-sm text-gray-600">
+            {product.brand.name}
+          </span>
         </div>
       )}
       
       {/* Product name and price */}
-      <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
-      <div className="mt-3 flex items-end gap-4">
-        <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-semibold text-gray-900">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">{product.name}</h1>
+        <div className="flex items-baseline gap-4">
+          <span className="text-3xl font-semibold text-gray-900">
             <Currency value={currentPrice} />
           </span>
           {compareAtPrice && (
-            <span className="text-lg text-gray-500 line-through">
+            <span className="text-xl text-gray-500 line-through">
               <Currency value={compareAtPrice} />
             </span>
           )}
+          {discount && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+              {discount}% OFF
+            </span>
+          )}
         </div>
-        {discount && (
-          <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-sm font-medium">
-            {discount}% OFF
-          </span>
-        )}
       </div>
       
-      {/* Variant options */}
-      {optionGroups.map(group => (
-        <div key={group.type.id} className="mt-8">
+      {/* Variants List */}
+      {availableVariants.length > 0 && (
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-900">
-              {group.type.presentation}
-            </h3>
-            {inStock && (
-              <span className="text-sm text-gray-500">
-                Select {group.type.presentation.toLowerCase()}
-              </span>
+            <h3 className="text-sm font-medium text-gray-900">Available Variants</h3>
+            {selectedVariant && (
+              <button
+                onClick={() => setSelectedVariant(null)}
+                className="text-sm text-gray-500 hover:text-gray-900"
+              >
+                Reset to default
+              </button>
             )}
           </div>
-          <div className="mt-4">
-            <div className="flex flex-wrap gap-3">
-              {group.type.optionValues.map(optionValue => {
-                const isSelected = group.values.some(v => 
-                  v.optionValue.id === optionValue.id
-                );
-                const isAvailable = product.variants.some(variant =>
-                  variant.optionValues.some(ov => 
-                    ov.optionValue.id === optionValue.id
-                  ) &&
-                  variant.stockItems.some(item => item.count > 0)
-                );
-                
-                return (
-                  <button
-                    key={optionValue.id}
-                    onClick={() => handleOptionChange(group.type.id, optionValue.id)}
-                    disabled={!isAvailable}
-                    className={`
-                      relative px-4 py-2 rounded-md border text-sm font-medium
-                      transition-all duration-200
-                      ${isSelected 
-                        ? 'border-black bg-black text-white' 
-                        : isAvailable
-                          ? 'border-gray-300 hover:border-gray-900'
-                          : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }
-                    `}
-                  >
-                    {optionValue.presentation}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="space-y-2">
+            {availableVariants.map(variant => {
+              const variantInStock = variant.stockItems.some(item => item.count > 0);
+              const isSelected = selectedVariant?.id === variant.id;
+              
+              // Just use the variant name
+              const variantName = variant.name;
+
+              return (
+                <button
+                  key={variant.id}
+                  onClick={() => handleVariantSelect(variant)}
+                  disabled={!variantInStock}
+                  className={cn(
+                    "w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all duration-200",
+                    isSelected ? (
+                      "border-black bg-black text-white"
+                    ) : variantInStock ? (
+                      "border-gray-200 hover:border-gray-900"
+                    ) : (
+                      "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                    )
+                  )}
+                >
+                  <div className="flex flex-col items-start">
+                    <span className="text-sm font-medium">
+                      {variantName}
+                    </span>
+                    <span className={cn(
+                      "text-xs mt-1",
+                      isSelected ? "text-gray-300" : "text-gray-500"
+                    )}>
+                      {variantInStock ? "In Stock" : "Out of Stock"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "font-semibold",
+                      isSelected ? "text-white" : "text-gray-900"
+                    )}>
+                      <Currency value={variant.price} />
+                    </span>
+                    {isSelected && (
+                      <Check size={16} />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
-      ))}
+      )}
 
       {/* Quantity and add to cart */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-gray-900">Quantity</h3>
           {inStock ? (
             <span className="text-sm text-green-600 font-medium">In Stock</span>
@@ -160,11 +191,11 @@ export const ProductInfo: React.FC<ProductInfoProps> = ({
           )}
         </div>
         <div className="flex items-center gap-6">
-          <div className="flex items-center border rounded-md">
+          <div className="flex items-center border rounded-full">
             <button
               onClick={() => handleQuantityChange(quantity - 1)}
               disabled={!inStock || quantity <= 1}
-              className="p-2 hover:bg-gray-100 disabled:opacity-50"
+              className="p-2 hover:bg-gray-100 disabled:opacity-50 rounded-l-full"
             >
               <Minus size={16} />
             </button>
@@ -173,37 +204,50 @@ export const ProductInfo: React.FC<ProductInfoProps> = ({
               min="1"
               value={quantity}
               onChange={(e) => handleQuantityChange(parseInt(e.target.value))}
-              className="w-16 text-center border-x py-2 text-sm"
+              className="w-16 text-center border-x py-2 text-sm bg-transparent"
             />
             <button
               onClick={() => handleQuantityChange(quantity + 1)}
               disabled={!inStock}
-              className="p-2 hover:bg-gray-100 disabled:opacity-50"
+              className="p-2 hover:bg-gray-100 disabled:opacity-50 rounded-r-full"
             >
               <Plus size={16} />
             </button>
           </div>
           <Button
-            disabled={!inStock || !selectedVariant}
-            className="flex-1 flex items-center justify-center gap-2"
+            onClick={handleAddToCart}
+            disabled={!inStock || addingToCart}
+            className="flex-1 py-6 text-lg transition-all duration-200 relative"
             size="lg"
           >
-            <ShoppingCart size={20} />
-            Add to Cart
+            <span className={cn(
+              "absolute inset-0 flex items-center justify-center",
+              addingToCart ? "opacity-100" : "opacity-0"
+            )}>
+              Added to Cart!
+            </span>
+            <span className={cn(
+              "flex items-center justify-center gap-2",
+              addingToCart ? "opacity-0" : "opacity-100"
+            )}>
+              <ShoppingCart size={20} />
+              Add to Cart
+            </span>
           </Button>
         </div>
       </div>
 
       {/* Description */}
-      {product.description && (
-        <div className="mt-10 pt-10 border-t">
-          <h3 className="text-sm font-medium text-gray-900">Description</h3>
+      {/* Description */}
+      {product.description && product.description.length > 0 && (
+        <div className="border-t pt-8">
+          <h3 className="text-sm font-medium text-gray-900 mb-4">Description</h3>
           <div 
-            className="mt-4 prose prose-sm text-gray-500"
-            dangerouslySetInnerHTML={{ __html: product.description }}
+            className="prose prose-sm text-gray-500 max-w-none"
+            dangerouslySetInnerHTML={{ __html: product.description || '' }}
           />
         </div>
       )}
-    </div>
+    </Card>
   );
 };
