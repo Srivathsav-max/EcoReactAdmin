@@ -3,8 +3,7 @@ import prismadb from "@/lib/prismadb";
 import { formatProduct, formatProducts } from "@/lib/price-formatter";
 import { type Product } from "@/types/models";
 import { ProductsCarousel } from "../../components/products-carousel";
-import { ProductInfo } from "../../components/product-info";
-import { Gallery } from "../../components/gallery";
+import { ProductDisplay } from "../../components/product-display";
 
 interface ProductPageProps {
   params: {
@@ -137,10 +136,7 @@ const ProductPage = async ({ params }: ProductPageProps) => {
     <div className="bg-white">
       <div className="mx-auto max-w-screen-2xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="md:grid md:grid-cols-2 md:items-start md:gap-x-8">
-          <Gallery images={[...product.images, ...product.variants.flatMap(v => v.images)]} />
-          <div className="mt-10 px-4 sm:mt-16 sm:px-0 lg:mt-0">
-            <ProductInfo product={product} />
-          </div>
+          <ProductDisplay product={product} />
         </div>
         <hr className="my-10" />
         <ProductsCarousel title="Related Items" items={relatedProducts} />

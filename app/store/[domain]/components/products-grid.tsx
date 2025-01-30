@@ -63,10 +63,14 @@ export const ProductsGrid: React.FC<ProductsGridProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-3xl">{title}</h3>
-        <div className="flex items-center gap-x-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="py-6 border-b">
+        <h3 className="font-bold text-2xl sm:text-3xl">{title}</h3>
+      </div>
+      
+      <div className="flex flex-col lg:flex-row gap-8 py-6">
+        {/* Mobile filters and sorting */}
+        <div className="lg:hidden flex items-center justify-between mb-6">
           <MobileFilters 
             sizes={sizes}
             colors={colors}
@@ -75,7 +79,7 @@ export const ProductsGrid: React.FC<ProductsGridProps> = ({
             onFilter={onFilter}
           />
           <select 
-            className="p-2 border rounded-md"
+            className="p-2 border rounded-md bg-white"
             onChange={(e) => onSortChange(e.target.value)}
             value={searchParams.sort || ""}
           >
@@ -85,30 +89,29 @@ export const ProductsGrid: React.FC<ProductsGridProps> = ({
             <option value="newest">Newest First</option>
           </select>
         </div>
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        <div className="hidden lg:block space-y-6">
-          {sizes.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="font-semibold">Sizes</h4>
-              <div className="flex flex-wrap gap-2">
-                {sizes.map((size) => (
-                  <Button
-                    key={size.id}
-                    onClick={() => onFilter("sizeId", size.id)}
-                    variant={searchParams.sizeId === size.id ? "default" : "outline"}
-                  >
-                    {size.name}
-                  </Button>
-                ))}
+        {/* Desktop sidebar filters */}
+        <div className="hidden lg:block w-64 flex-shrink-0">
+          <div className="sticky top-20 space-y-8">
+            {sizes.length > 0 && (
+              <div>
+                <h4 className="text-lg font-medium mb-4">Sizes</h4>
+                <div className="flex flex-wrap gap-2">
+                  {sizes.map((size) => (
+                    <Button
+                      key={size.id}
+                      onClick={() => onFilter("sizeId", size.id)}
+                      variant={searchParams.sizeId === size.id ? "default" : "outline"}
+                    >
+                      {size.name}
+                    </Button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-          
-          {colors.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="font-semibold">Colors</h4>
+            )}
+
+            {colors.length > 0 && (
+              <div>
+              <h4 className="text-lg font-medium mb-4">Colors</h4>
               <div className="flex flex-wrap gap-2">
                 {colors.map((color) => (
                   <Button
@@ -126,11 +129,11 @@ export const ProductsGrid: React.FC<ProductsGridProps> = ({
                 ))}
               </div>
             </div>
-          )}
-          
-          {brands.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="font-semibold">Brands</h4>
+            )}
+            
+            {brands.length > 0 && (
+            <div>
+              <h4 className="text-lg font-medium mb-4">Brands</h4>
               <div className="flex flex-wrap gap-2">
                 {brands.map((brand) => (
                   <Button
@@ -143,10 +146,24 @@ export const ProductsGrid: React.FC<ProductsGridProps> = ({
                 ))}
               </div>
             </div>
-          )}
+            )}
+          </div>
         </div>
-        
-        <div className="lg:col-span-4">
+
+        {/* Product grid */}
+        <div className="flex-1">
+          <div className="hidden lg:flex justify-end mb-6">
+            <select 
+              className="p-2 border rounded-md bg-white min-w-[200px]"
+              onChange={(e) => onSortChange(e.target.value)}
+              value={searchParams.sort || ""}
+            >
+              <option value="">Sort by</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="newest">Newest First</option>
+            </select>
+          </div>
           {items.length === 0 ? (
             <EmptyState 
               showReset={hasActiveFilters}
@@ -156,7 +173,7 @@ export const ProductsGrid: React.FC<ProductsGridProps> = ({
               }
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
               {items.map((item) => (
                 <ProductCard key={item.id} data={item} />
               ))}

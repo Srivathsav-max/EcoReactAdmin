@@ -33,34 +33,46 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const displayImage = data.images[0] || data.variants.flatMap((variant: Variant) => variant.images)[0];
 
   return (
-    <button
+    <button 
       onClick={handleClick}
-      className="group w-full cursor-pointer space-y-4 rounded-xl border p-3 bg-white transition hover:shadow-lg"
+      className="group w-full text-left bg-white rounded-lg overflow-hidden border hover:shadow-lg transition duration-300"
     >
-      {/* Image */}
-      <div className="aspect-square relative bg-gray-100 rounded-xl overflow-hidden">
+      {/* Image Container */}
+      <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden">
         <Image
           src={displayImage?.url || "/placeholder.png"}
           alt={data.name}
           fill
-          className="aspect-square object-cover rounded-md transition group-hover:scale-105"
+          className="object-cover object-center transition duration-300 group-hover:scale-105"
         />
+        {compareAtPrice && compareAtPrice > price && (
+          <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 text-xs font-medium rounded">
+            SALE
+          </div>
+        )}
       </div>
-      {/* Details */}
-      <div className="space-y-1">
-        <p className="font-semibold text-lg truncate">{data.name}</p>
+      
+      {/* Content */}
+      <div className="p-4">
+        {/* Brand */}
         {data.brand && (
-          <p className="text-sm text-gray-500 truncate">
+          <p className="text-sm text-gray-500 mb-1">
             {data.brand.name}
           </p>
         )}
-      </div>
-      {/* Price */}
-      <div className="flex items-end justify-between">
-        <div className="text-lg font-semibold">
-          <Currency value={price} />
+        
+        {/* Product Name */}
+        <h3 className="font-medium text-gray-900 mb-2 line-clamp-2">
+          {data.name}
+        </h3>
+        
+        {/* Price */}
+        <div className="flex items-baseline gap-2">
+          <span className="text-lg font-semibold text-gray-900">
+            <Currency value={price} />
+          </span>
           {compareAtPrice && compareAtPrice > price && (
-            <span className="text-sm text-gray-500 line-through ml-2">
+            <span className="text-sm text-gray-500 line-through">
               <Currency value={compareAtPrice} />
             </span>
           )}

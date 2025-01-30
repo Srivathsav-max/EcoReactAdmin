@@ -3,49 +3,78 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useParams, useRouter } from "next/navigation";
-import { ShoppingBag, Moon, Sun, User } from "lucide-react";
+import { ShoppingBag, Moon, Sun, User, Store, ChevronDown, Search, ChevronRight } from "lucide-react";
 import { useTheme } from "next-themes";
-
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+interface Taxon {
+  id: string;
+  name: string;
+  permalink: string;
+  children: Taxon[];
+}
 
 interface Category {
   id: string;
   name: string;
-  taxons: {
-    id: string;
-    name: string;
-    permalink: string;
-  }[];
+  taxons: Taxon[];
 }
 
 interface NavbarProps {
   taxonomies: Category[];
 }
 
-export const Navbar: React.FC<NavbarProps> = ({
-  taxonomies = []
-}) => {
+const NestedDropdown: React.FC<{
+  taxon: Taxon;
+  domain: string;
+}> = ({ taxon, domain }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div
+      className="relative group"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <Link
+        href={`/store/${domain}/category/${taxon.id}`}
+        className="flex items-center justify-between px-4 py-2 hover:bg-accent w-full text-sm"
+      >
+        {taxon.name}
+        {taxon.children?.length > 0 && (
+          <ChevronRight className="h-4 w-4 ml-2" />
+        )}
+      </Link>
+      
+      {taxon.children?.length > 0 && isHovered && (
+        <div className="absolute left-full top-0 w-48 bg-background border rounded-md shadow-md">
+          {taxon.children.map((child) => (
+            <NestedDropdown key={child.id} taxon={child} domain={domain} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const Navbar: React.FC<NavbarProps> = ({ taxonomies = [] }) => {
   const pathname = usePathname();
   const params = useParams();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const domain = params?.domain;
+  const domain = params?.domain as string;
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -63,14 +92,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         
         if (response.ok) {
           const data = await response.json();
-          if (data && data.id) {
+          if (data?.id) {
             setIsAuthenticated(true);
             return;
           }
         }
         
         setIsAuthenticated(false);
-        // Only redirect on protected routes
         if (pathname.includes('/profile') || pathname.includes('/orders')) {
           router.replace(`/store/${domain}/signin`);
         }
@@ -86,95 +114,149 @@ export const Navbar: React.FC<NavbarProps> = ({
       checkAuth();
     }
 
-    return () => {
-      controller.abort();
-    };
+    return () => controller.abort();
   }, [domain, pathname, router]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 0);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <nav className="border-b">
-      <div className="relative px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
-        <Link href={`/store/${domain}`} className="flex lg:ml-0 gap-x-2">
-          <p className="font-bold text-xl">STORE</p>
-        </Link>
-        <NavigationMenu>
-          <NavigationMenuList>
-            {taxonomies.map((taxonomy) => (
-              <NavigationMenuItem key={taxonomy.id}>
-                <NavigationMenuTrigger>{taxonomy.name}</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
-                    {taxonomy.taxons.map((taxon) => (
-                      <li key={taxon.id}>
-                        <Link
-                          href={`/store/${domain}/category/${taxon.permalink}`}
-                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
-                          <div className="text-sm font-medium leading-none">{taxon.name}</div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-            ))}
-          </NavigationMenuList>
-        </NavigationMenu>
-        <div className="flex items-center gap-x-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-            className="mr-6"
-          >
-            {theme === "light" ? (
-              <Moon className="h-5 w-5" />
-            ) : (
-              <Sun className="h-5 w-5" />
-            )}
-          </Button>
-          <Link href={`/store/${domain}/cart`}>
-            <Button variant="ghost" size="icon">
-              <ShoppingBag className="h-5 w-5" />
-            </Button>
-          </Link>
-          {isAuthenticated ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <User className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href={`/store/${domain}/profile`}>
-                    Profile Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={`/store/${domain}/orders`}>
-                    My Orders
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={`/store/${domain}/signout`}>
-                    Sign Out
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <div className="flex items-center gap-x-4">
-              <Link href={`/store/${domain}/signin`}>
-                <Button variant="ghost">Sign In</Button>
-              </Link>
-              <Link href={`/store/${domain}/signup`}>
-                <Button>Sign Up</Button>
-              </Link>
+    <div>
+      {/* Top Bar */}
+      <div className="bg-primary text-primary-foreground py-1">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center text-xs">
+            <div>Free Shipping on Orders Over $50</div>
+            <div className="flex gap-4">
+              <Link href={`/store/${domain}/contact`}>Contact</Link>
+              <Link href={`/store/${domain}/help`}>Help</Link>
             </div>
-          )}
+          </div>
         </div>
       </div>
-    </nav>
+
+      {/* Main Navigation */}
+      <nav className={cn(
+        "sticky top-0 z-50 border-b transition-all duration-300",
+        isScrolled ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60" : "bg-background"
+      )}>
+        {/* Upper Nav Section */}
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link 
+              href={`/store/${domain}`} 
+              className="flex items-center gap-x-2 hover:opacity-90 transition-opacity"
+            >
+              <Store className="h-8 w-8" />
+              <p className="font-bold text-2xl tracking-tight">STORE</p>
+            </Link>
+
+            {/* Search Bar */}
+            <div className="hidden lg:flex flex-1 max-w-2xl mx-8">
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  className="w-full px-4 py-2 rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <Search className="absolute right-3 top-2.5 h-5 w-5 text-muted-foreground" />
+              </div>
+            </div>
+
+            {/* Right Section */}
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                className="hover:bg-accent"
+              >
+                {theme === "light" ? (
+                  <Moon className="h-5 w-5" />
+                ) : (
+                  <Sun className="h-5 w-5" />
+                )}
+              </Button>
+
+              <Link href={`/store/${domain}/cart`}>
+                <Button variant="ghost" size="icon" className="hover:bg-accent relative">
+                  <ShoppingBag className="h-5 w-5" />
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-4 h-4 text-xs flex items-center justify-center">0</span>
+                </Button>
+              </Link>
+
+              {isAuthenticated ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="hover:bg-accent flex items-center gap-2">
+                      <User className="h-5 w-5" />
+                      <span className="hidden md:inline">Account</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem asChild>
+                      <Link href={`/store/${domain}/profile`}>Profile Settings</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/store/${domain}/orders`}>My Orders</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/store/${domain}/wishlist`}>Wishlist</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild className="text-red-500 focus:text-red-500">
+                      <Link href={`/store/${domain}/signout`}>Sign Out</Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link href={`/store/${domain}/signin`}>
+                    <Button variant="ghost">Sign In</Button>
+                  </Link>
+                  <Link href={`/store/${domain}/signup`}>
+                    <Button>Sign Up</Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Categories Navigation */}
+        <div className="border-t">
+          <div className="container mx-auto px-4">
+            <div className="flex">
+              {taxonomies.map((category) => (
+                <div key={category.id} className="group relative">
+                  <button className="px-4 py-3 text-sm font-medium hover:text-primary flex items-center gap-1">
+                    {category.name}
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                  
+                  <div className="hidden group-hover:block absolute left-0 top-full w-48 bg-background border rounded-md shadow-md">
+                    {category.taxons.map((taxon) => (
+                      <NestedDropdown 
+                        key={taxon.id} 
+                        taxon={taxon} 
+                        domain={domain}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </nav>
+    </div>
   );
 };
