@@ -28,7 +28,7 @@ export interface Product {
   brand?: Brand;
   variants?: Variant[];
   tags?: string[];
-  taxRate?: number;
+  taxRate?: number | Decimal;
   weight?: number;
   height?: number;
   width?: number;
@@ -116,7 +116,7 @@ export interface ProductFormData {
   barcode?: string;
   isVisible: boolean;
   tags: string[];
-  taxRate?: number;
+  taxRate?: number | Decimal;
   weight?: number;
   height?: number;
   width?: number;

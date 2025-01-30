@@ -1,3 +1,4 @@
+import { Decimal } from "@prisma/client/runtime/library";
 import { UseFormReturn } from "react-hook-form";
 
 // Base types
@@ -29,7 +30,7 @@ export interface ProductFormType {
   tags: string[];
   status: string;
   hasVariants: boolean;
-  taxRate?: number;
+  taxRate?: number | Decimal;
   weight?: number;
   height?: number;
   width?: number;

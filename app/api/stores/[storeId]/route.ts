@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession, isAdmin } from "@/lib/auth";
+import { getAdminSession, isAdmin } from "@/lib/auth";
 import prismadb from "@/lib/prismadb";
 
 export async function PATCH(
@@ -7,7 +7,7 @@ export async function PATCH(
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAdminSession();
 
     if (!session || !isAdmin(session)) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -59,7 +59,7 @@ export async function DELETE(
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAdminSession();
 
     if (!session || !isAdmin(session)) {
       return new NextResponse("Unauthorized", { status: 401 });
