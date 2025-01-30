@@ -30,18 +30,35 @@ const CategoryPage = async ({ params, searchParams }: CategoryPageProps) => {
     return notFound();
   }
 
-  // Find the taxon with its store context
+  // Find the taxon with its store context and hierarchical data
   const taxon = await prismadb.taxon.findFirst({
     where: {
-      permalink: params.slug,
+      id: params.slug,
       taxonomy: {
         storeId: store.id,
       },
     },
     include: {
       billboard: true,
+      children: {
+        include: {
+          products: true
+        }
+      },
+      products: true
     },
   });
+
+  if (!taxon) {
+    console.error(`Taxon not found for ID: ${params.slug}`);
+    return notFound();
+  }
+
+  // Include products from both current taxon and child taxons
+  const allProductIds = [
+    ...taxon.products.map(p => p.id),
+    ...taxon.children.flatMap(child => child.products.map(p => p.id))
+  ];
 
   if (!taxon) {
     return notFound();
@@ -51,11 +68,20 @@ const CategoryPage = async ({ params, searchParams }: CategoryPageProps) => {
   const whereClause: any = {
     storeId: store.id,
     isVisible: true,
-    taxons: {
-      some: {
-        id: taxon.id,
+    OR: [
+      {
+        id: {
+          in: allProductIds
+        }
       },
-    },
+      {
+        taxons: {
+          some: {
+            id: taxon.id
+          }
+        }
+      }
+    ]
   };
 
   if (searchParams.brandId) {
@@ -143,11 +169,13 @@ const CategoryPage = async ({ params, searchParams }: CategoryPageProps) => {
   });
 
   return (
-    <div className="pb-10">
+    <div>
       {taxon.billboard && (
-        <Billboard data={taxon.billboard} />
+        <div className="mb-8">
+          <Billboard data={taxon.billboard} />
+        </div>
       )}
-      <div className="px-4 sm:px-6 lg:px-8 pb-24">
+      <div className="pb-24">
         <ProductsGrid
           title={taxon.name}
           items={products}
