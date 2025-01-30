@@ -1,10 +1,10 @@
 "use client";
 
-import { Store } from "@prisma/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Store } from "@prisma/client";
 import {
   LayoutDashboard,
   Package,
@@ -17,7 +17,6 @@ import {
   Truck,
   ListChecks,
   ShoppingBag,
-  BarChart,
   Box,
   FileText,
   Grid,
@@ -27,15 +26,12 @@ import {
   ChevronRight,
   FolderTree,
   FileQuestion,
-  LayoutTemplate
+  LayoutTemplate,
+  Menu
 } from "lucide-react";
 import { LucideIcon } from "lucide-react";
-
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-interface SidebarProps {
-  store: Store | null;
-}
 
 type MenuItem = {
   label: string;
@@ -52,12 +48,29 @@ type RouteItem = {
   items?: MenuItem[];
 };
 
-export function Sidebar({ store }: SidebarProps) {
+export function Sidebar({ store }: { store: Store | null }) {
   const pathname = usePathname();
   const params = useParams();
   const [openCategories, setOpenCategories] = useState<string[]>([]);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+      if (window.innerWidth < 1024) {
+        setIsCollapsed(true);
+      }
+    };
+
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
 
   const toggleCategory = (category: string) => {
+    if (isCollapsed) return;
     setOpenCategories(prev => 
       prev.includes(category) 
         ? prev.filter(c => c !== category)
@@ -219,67 +232,184 @@ export function Sidebar({ store }: SidebarProps) {
   ];
 
   return (
-    <div className={cn("pb-12 min-h-screen border-r relative")}>
-      <div className="space-y-4 py-4 h-full overflow-y-auto max-h-screen">
-        <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-lg font-semibold sticky top-0 bg-background z-50">
-            Store Management
-          </h2>
-          <div className="space-y-1">
-            {routes.map((route, index) => (
-              <div key={index}>
-                {route.items ? (
-                  <Collapsible
-                    open={openCategories.includes(route.label)}
-                    onOpenChange={() => toggleCategory(route.label)}
-                  >
-                    <CollapsibleTrigger className="w-full">
-                      <div className="px-4 py-2 flex items-center justify-between text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors">
-                        <div className="flex items-center">
-                          {route.icon && <route.icon className="h-4 w-4 mr-2" />}
-                          {route.label}
-                        </div>
-                        <ChevronRight className={cn(
-                          "h-4 w-4 transition-transform",
-                          openCategories.includes(route.label) && "transform rotate-90"
-                        )} />
-                      </div>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="pl-4 space-y-1 pt-2">
-                        {route.items.map((item) => (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            className={cn(
-                              "flex items-center rounded-md px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors",
-                              item.active ? "bg-accent text-accent-foreground" : "transparent"
+    <aside 
+      className={cn(
+        "fixed left-0 top-16 h-[calc(100vh-4rem)] bg-background",
+        "transition-all duration-300 ease-in-out z-30",
+        "flex flex-col",
+        isCollapsed ? "w-[70px]" : "w-[280px]"
+      )}
+    >
+      <div className="relative h-full border-r border-r-accent/20">
+        <div className="absolute right-0 top-3">
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className={cn(
+              "flex items-center justify-center w-6 h-12 -mr-3",
+              "rounded-l-xl bg-primary/5 hover:bg-primary/10",
+              "transition-colors border-y border-l border-accent/20"
+            )}
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+        </div>
+        
+        <div className="h-full overflow-hidden">
+          <div className="h-full overflow-y-auto no-scrollbar px-3 py-4">
+            <div className="space-y-4">
+              {store && (
+                <div className={cn(
+                  "flex items-center gap-3 px-3.5 py-4",
+                  isCollapsed ? "justify-center" : "justify-start"
+                )}>
+                  {isCollapsed ? (
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-sm font-medium text-primary">
+                        {store.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  ) : (
+                    <h2 className="font-semibold text-lg truncate text-primary/80">
+                      {store.name}
+                    </h2>
+                  )}
+                </div>
+              )}
+              
+              <nav className="space-y-1">
+                {routes.map((route, index) => (
+                  <div key={index}>
+                    {route.items ? (
+                      <Collapsible
+                        open={!isCollapsed && openCategories.includes(route.label)}
+                        onOpenChange={() => toggleCategory(route.label)}
+                      >
+                        <CollapsibleTrigger className="w-full">
+                          <div className={cn(
+                            "group w-full rounded-lg border border-transparent",
+                            "transition-all duration-200",
+                            openCategories.includes(route.label)
+                              ? "bg-primary/5 border-primary/20"
+                              : "hover:bg-accent/5 hover:border-accent/10",
+                            isCollapsed && "justify-center"
+                          )}>
+                            <div className="px-3.5 py-2.5 flex items-center justify-between">
+                              <div className="flex items-center min-w-0 gap-3">
+                                {route.icon && (
+                                  <route.icon className={cn(
+                                    "h-4 w-4 shrink-0",
+                                    openCategories.includes(route.label)
+                                      ? "text-primary"
+                                      : "text-muted-foreground group-hover:text-foreground"
+                                  )} />
+                                )}
+                                {!isCollapsed && (
+                                  <span className="text-sm font-medium truncate">
+                                    {route.label}
+                                  </span>
+                                )}
+                              </div>
+                              {!isCollapsed && (
+                                <ChevronRight className={cn(
+                                  "h-4 w-4 shrink-0 transition-transform",
+                                  openCategories.includes(route.label) && "rotate-90"
+                                )} />
+                              )}
+                            </div>
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className={cn(
+                            "mt-1 space-y-1",
+                            !isCollapsed && "ml-4"
+                          )}>
+                            {route.items.map((item) => (
+                              <Link
+                                key={item.href}
+                                href={item.href}
+                                className="block"
+                              >
+                                <div className={cn(
+                                  "rounded-lg border border-transparent",
+                                  "transition-all duration-200 group",
+                                  item.active
+                                    ? "bg-primary/5 border-primary/20"
+                                    : "hover:bg-accent/5 hover:border-accent/10",
+                                  isCollapsed ? "px-2 py-2" : "px-3.5 py-2"
+                                )}>
+                                  <div className="flex items-center min-w-0 gap-3">
+                                    <div className={cn(
+                                      "p-1 rounded shrink-0",
+                                      item.active
+                                        ? "bg-primary/10"
+                                        : "bg-transparent group-hover:bg-accent/5"
+                                    )}>
+                                      {item.icon}
+                                    </div>
+                                    {!isCollapsed && (
+                                      <span className={cn(
+                                        "text-sm truncate",
+                                        item.active
+                                          ? "font-medium text-foreground"
+                                          : "text-muted-foreground group-hover:text-foreground"
+                                      )}>
+                                        {item.label}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ) : route.href ? (
+                      <Link href={route.href} className="block">
+                        <div className={cn(
+                          "rounded-lg border border-transparent",
+                          "transition-all duration-200 group",
+                          route.active
+                            ? "bg-primary/5 border-primary/20"
+                            : "hover:bg-accent/5 hover:border-accent/10",
+                          isCollapsed ? "px-2 py-2" : "px-3.5 py-2.5"
+                        )}>
+                          <div className="flex items-center min-w-0 gap-3">
+                            {route.icon && (
+                              <div className={cn(
+                                "p-1 rounded shrink-0",
+                                route.active
+                                  ? "bg-primary/10"
+                                  : "bg-transparent group-hover:bg-accent/5"
+                              )}>
+                                <route.icon className={cn(
+                                  "h-4 w-4",
+                                  route.active
+                                    ? "text-primary"
+                                    : "text-muted-foreground group-hover:text-foreground"
+                                )} />
+                              </div>
                             )}
-                          >
-                            {item.icon}
-                            <span className="ml-2">{item.label}</span>
-                          </Link>
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                ) : route.href ? (
-                  <Link
-                    href={route.href}
-                    className={cn(
-                      "flex items-center rounded-md px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors",
-                      route.active ? "bg-accent text-accent-foreground" : "transparent"
-                    )}
-                  >
-                    {route.icon && <route.icon className="h-4 w-4 mr-2" />}
-                    {route.label}
-                  </Link>
-                ) : null}
-              </div>
-            ))}
+                            {!isCollapsed && (
+                              <span className={cn(
+                                "text-sm truncate",
+                                route.active
+                                  ? "font-medium text-foreground"
+                                  : "text-muted-foreground group-hover:text-foreground"
+                              )}>
+                                {route.label}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    ) : null}
+                  </div>
+                ))}
+              </nav>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
