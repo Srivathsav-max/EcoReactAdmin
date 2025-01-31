@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import { getCurrentUser } from "@/lib/session";
 import prismadb from "@/lib/prismadb";
 
@@ -73,4 +74,4 @@ export async function GET(
     console.log('[ATTRIBUTE_VALUES_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-} 
+}

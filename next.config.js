@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   images: {
     domains: [
       'cloud.appwrite.io',
@@ -22,11 +23,6 @@ const nextConfig = {
     '@prisma/client',
     '@tanstack/react-table'
   ],
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '2mb'
-    }
-  },
   productionBrowserSourceMaps: false,
   poweredByHeader: false
 };

@@ -1,22 +1,25 @@
 import { Client, Account, Storage, ID, Permission, Role } from 'appwrite';
 
 // Environment variable validation
-if (!process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID) {
-  throw new Error('Missing APPWRITE_PROJECT_ID');
+const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+const bucketId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID;
+
+if (!projectId) {
+  throw new Error('Missing NEXT_PUBLIC_APPWRITE_PROJECT_ID');
 }
 
-if (!process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID) {
-  throw new Error('Missing APPWRITE_BUCKET_ID');
+if (!bucketId) {
+  throw new Error('Missing NEXT_PUBLIC_APPWRITE_BUCKET_ID');
 }
 
 const client = new Client()
   .setEndpoint('https://cloud.appwrite.io/v1')
-  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+  .setProject(projectId);
 
 export const account = new Account(client);
 export const storage = new Storage(client);
 export const serverStorage = storage;
-export const bucketId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID!;
+export { bucketId };
 export { ID, Permission, Role };
 
 // Image URL masking helper

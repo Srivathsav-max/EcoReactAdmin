@@ -24,8 +24,7 @@ export async function middleware(request: NextRequest) {
     const isAdminDomain = hostname === process.env.ADMIN_DOMAIN ||
                          hostname === 'localhost:3000' ||
                          hostname === '127.0.0.1:3000' ||
-                         hostname === 'admin.lvh.me:3000' ||
-                         hostname === 'preview-ecoreact.vercel.app';
+                         hostname === 'admin.lvh.me:3000' ;
 
     // Exclude static files and image proxy
     if (

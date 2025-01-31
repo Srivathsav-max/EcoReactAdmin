@@ -1,5 +1,6 @@
-import prismadb from "@/lib/prismadb";
 import { NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
+import prismadb from "@/lib/prismadb";
 import { getAdminSession } from "@/lib/auth";
 import { deleteFile } from "@/lib/appwrite-config";
 
