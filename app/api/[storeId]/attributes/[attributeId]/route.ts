@@ -4,7 +4,7 @@ import prismadb from "@/lib/prismadb";
 
 export async function GET(
   req: Request,
-  { params }: { params: { attributeId: string } }
+  { params }: { params: { storeId: string; attributeId: string } } 
 ) {
   try {
     if (!params.attributeId) {

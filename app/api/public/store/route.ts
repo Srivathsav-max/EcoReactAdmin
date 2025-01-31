@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import prismadb from "@/lib/prismadb";
 
 // GET /api/public/store?domain={domain}
