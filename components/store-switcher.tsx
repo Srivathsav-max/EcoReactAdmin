@@ -1,10 +1,16 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Check, ChevronsUpDown, PlusCircle, Store } from "lucide-react"
+import * as React from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Check,
+  ChevronsUpDown,
+  PlusCircle,
+  Store as StoreIcon
+} from "lucide-react";
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -13,22 +19,24 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@/components/ui/command"
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { useStoreModal } from "@/hooks/use-store-modal"
-import { useParams, useRouter } from "next/navigation"
+} from "@/components/ui/popover";
+import { useStoreModal } from "@/hooks/use-store-modal";
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverTrigger>
 
 interface StoreSwitcherProps extends PopoverTriggerProps {
-  items: Record<string, any>[];
+  items: any[];
 }
 
-export default function StoreSwitcher({ className, items = [] }: StoreSwitcherProps) {
+export default function StoreSwitcher({
+  className,
+  items = []
+}: StoreSwitcherProps) {
   const storeModal = useStoreModal();
   const params = useParams();
   const router = useRouter();
@@ -47,61 +55,89 @@ export default function StoreSwitcher({ className, items = [] }: StoreSwitcherPr
     router.push(`/${store.value}`);
   };
 
-  const onCreateStore = () => {
-    setOpen(false);
-    storeModal.onOpen();
-  };
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant="outline"
-          size="sm"
+          variant="ghost"
           role="combobox"
           aria-expanded={open}
           aria-label="Select a store"
-          className={cn("w-[200px] justify-between", className)}
+          className={cn(
+            "w-full justify-between hover:bg-primary/5",
+            "ring-offset-background",
+            "hover:ring-2 hover:ring-primary/10",
+            className
+          )}
         >
-          <Store className="mr-2 h-4 w-4" />
-          {currentStore?.label}
-          <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+          <div className="flex items-center gap-2 truncate">
+            <div className="rounded-md bg-primary/10 p-1">
+              <StoreIcon className="h-4 w-4 text-primary" />
+            </div>
+            <span className="truncate text-sm font-medium">
+              {currentStore?.label}
+            </span>
+          </div>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
+      <PopoverContent className="w-[220px] p-0">
         <Command>
+          <CommandInput
+            placeholder="Search stores..."
+            className="h-9"
+          />
           <CommandList>
-            <CommandInput placeholder="Search store..." />
             <CommandEmpty>No store found.</CommandEmpty>
-            <CommandGroup heading="Stores">
+            <CommandGroup heading="Available Stores">
               {formattedItems.map((store) => (
                 <CommandItem
                   key={store.value}
                   onSelect={() => onStoreSelect(store)}
                   className="text-sm"
                 >
-                  <Store className="mr-2 h-4 w-4" />
-                  {store.label}
-                  <Check
-                    className={cn(
-                      "ml-auto h-4 w-4",
-                      currentStore?.value === store.value
-                        ? "opacity-100"
-                        : "opacity-0"
-                    )}
-                  />
+                  <div className="flex items-center gap-2 truncate">
+                    <div className={cn(
+                      "rounded-md p-1",
+                      store.value === currentStore?.value
+                        ? "bg-primary/20"
+                        : "bg-muted"
+                    )}>
+                      <StoreIcon className={cn(
+                        "h-4 w-4",
+                        store.value === currentStore?.value
+                          ? "text-primary"
+                          : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <span className={cn(
+                      "truncate font-medium",
+                      store.value === currentStore?.value && "text-primary"
+                    )}>
+                      {store.label}
+                    </span>
+                  </div>
+                  {store.value === currentStore?.value && (
+                    <Check className="ml-auto h-4 w-4 text-primary" />
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>
-          </CommandList>
-          <CommandSeparator />
-          <CommandList>
+            <CommandSeparator />
             <CommandGroup>
               <CommandItem
-                onSelect={onCreateStore}
+                onSelect={() => {
+                  setOpen(false);
+                  storeModal.onOpen();
+                }}
+                className="text-sm"
               >
-                <PlusCircle className="mr-2 h-5 w-5" />
-                Create Store
+                <div className="flex items-center gap-2">
+                  <div className="rounded-md bg-muted p-1">
+                    <PlusCircle className="h-4 w-4" />
+                  </div>
+                  <span>Create Store</span>
+                </div>
               </CommandItem>
             </CommandGroup>
           </CommandList>
@@ -109,4 +145,4 @@ export default function StoreSwitcher({ className, items = [] }: StoreSwitcherPr
       </PopoverContent>
     </Popover>
   );
-};
+}

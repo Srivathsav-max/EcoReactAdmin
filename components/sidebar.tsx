@@ -2,58 +2,30 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Store } from "@prisma/client";
-import {
-  LayoutDashboard,
-  Package,
-  Settings,
-  ShoppingCart,
-  Users,
-  Layers,
-  Tags,
-  Building2,
-  Truck,
-  ListChecks,
-  ShoppingBag,
-  Box,
-  FileText,
-  Grid,
-  Image,
-  MessageSquare,
-  ArrowLeftRight,
-  ChevronRight,
-  FolderTree,
-  FileQuestion,
-  LayoutTemplate,
-  Menu
-} from "lucide-react";
-import { LucideIcon } from "lucide-react";
+import { Menu, ChevronRight, LogOut } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import StoreSwitcher from "@/components/store-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { handleSignOut } from "@/lib/auth-utils";
+import { Button } from "@/components/ui/button";
+import { useRouteItems } from "./admin/route-items";
+import { Separator } from "@/components/ui/separator";
+import { useSidebarState } from "@/hooks/use-sidebar-state";
 
+interface SidebarProps {
+  store: Store | null;
+  stores: any[];
+}
 
-type MenuItem = {
-  label: string;
-  href: string;
-  active: boolean;
-  icon?: React.ReactNode;
-};
-
-type RouteItem = {
-  label: string;
-  icon?: LucideIcon;
-  href?: string;
-  active?: boolean;
-  items?: MenuItem[];
-};
-
-export function Sidebar({ store }: { store: Store | null }) {
-  const pathname = usePathname();
-  const params = useParams();
+export function Sidebar({ store, stores }: SidebarProps) {
+  const router = useRouter();
   const [openCategories, setOpenCategories] = useState<string[]>([]);
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const routes = useRouteItems();
+  const { isCollapsed, setIsCollapsed } = useSidebarState();
 
   useEffect(() => {
     const checkIsMobile = () => {
@@ -67,7 +39,7 @@ export function Sidebar({ store }: { store: Store | null }) {
     window.addEventListener('resize', checkIsMobile);
     
     return () => window.removeEventListener('resize', checkIsMobile);
-  }, []);
+  }, [setIsCollapsed]);
 
   const toggleCategory = (category: string) => {
     if (isCollapsed) return;
@@ -78,206 +50,65 @@ export function Sidebar({ store }: { store: Store | null }) {
     );
   };
 
-  const routes: RouteItem[] = [
-    {
-      label: "Overview",
-      icon: LayoutDashboard,
-      href: `/${params.storeId}`,
-      active: pathname === `/${params.storeId}`,
-    },
-    {
-      label: "Catalog",
-      icon: Package,
-      items: [
-        {
-          label: "Products",
-          href: `/${params.storeId}/products`,
-          active: pathname === `/${params.storeId}/products`,
-          icon: <ShoppingBag className="h-4 w-4" />
-        },
-        {
-          label: "Variants",
-          href: `/${params.storeId}/variants`,
-          active: pathname === `/${params.storeId}/variants`,
-          icon: <Box className="h-4 w-4" />
-        },
-        {
-          label: "Taxonomies",
-          href: `/${params.storeId}/taxonomies`,
-          active: pathname === `/${params.storeId}/taxonomies`,
-          icon: <Layers className="h-4 w-4" />
-        },
-        {
-          label: "Taxons",
-          href: `/${params.storeId}/taxons`,
-          active: pathname === `/${params.storeId}/taxons`,
-          icon: <FolderTree className="h-4 w-4" />
-        },
-        {
-          label: "Brands",
-          href: `/${params.storeId}/brands`,
-          active: pathname === `/${params.storeId}/brands`,
-          icon: <Building2 className="h-4 w-4" />
-        },
-        {
-          label: "Suppliers",
-          href: `/${params.storeId}/suppliers`,
-          active: pathname === `/${params.storeId}/suppliers`,
-          icon: <Truck className="h-4 w-4" />
-        },
-      ],
-    },
-    {
-      label: "Attributes & Properties",
-      icon: Tags,
-      items: [
-        {
-          label: "Attributes",
-          href: `/${params.storeId}/attributes`,
-          active: pathname === `/${params.storeId}/attributes`,
-          icon: <ListChecks className="h-4 w-4" />
-        },
-        {
-          label: "Attribute Values",
-          href: `/${params.storeId}/attribute-values`,
-          active: pathname === `/${params.storeId}/attribute-values`,
-          icon: <Tags className="h-4 w-4" />
-        },
-        {
-          label: "Option Types",
-          href: `/${params.storeId}/option-types`,
-          active: pathname === `/${params.storeId}/option-types`,
-          icon: <Grid className="h-4 w-4" />
-        },
-      ]
-    },
-    {
-      label: "Inventory",
-      icon: Package,
-      items: [
-        {
-          label: "Stock Items",
-          href: `/${params.storeId}/stock-items`,
-          active: pathname === `/${params.storeId}/stock-items`,
-          icon: <Package className="h-4 w-4" />
-        },
-        {
-          label: "Stock Movements",
-          href: `/${params.storeId}/stock-movements`,
-          active: pathname === `/${params.storeId}/stock-movements`,
-          icon: <ArrowLeftRight className="h-4 w-4" />
-        },
-      ]
-    },
-    {
-      label: "Sales",
-      icon: ShoppingCart,
-      items: [
-        {
-          label: "Orders",
-          href: `/${params.storeId}/orders`,
-          active: pathname === `/${params.storeId}/orders`,
-          icon: <ShoppingCart className="h-4 w-4" />
-        },
-        {
-          label: "Customers",
-          href: `/${params.storeId}/customers`,
-          active: pathname === `/${params.storeId}/customers`,
-          icon: <Users className="h-4 w-4" />
-        },
-      ]
-    },
-    {
-      label: "Content",
-      icon: FileText,
-      items: [
-        {
-          label: "Home Layouts",
-          href: `/${params.storeId}/layouts`,
-          active: pathname === `/${params.storeId}/layouts`,
-          icon: <LayoutTemplate className="h-4 w-4" />
-        },
-        {
-          label: "Billboards",
-          href: `/${params.storeId}/billboards`,
-          active: pathname === `/${params.storeId}/billboards`,
-          icon: <Image className="h-4 w-4" />
-        },
-        {
-          label: "Reviews",
-          href: `/${params.storeId}/reviews`,
-          active: pathname === `/${params.storeId}/reviews`,
-          icon: <MessageSquare className="h-4 w-4" />
-        },
-      ]
-    },
-    {
-      label: "Documentation",
-      icon: FileQuestion,
-      items: [
-        {
-          label: "API Reference",
-          href: `/${params.storeId}/documentation`,
-          active: pathname === `/${params.storeId}/documentation`,
-          icon: <FileQuestion className="h-4 w-4" />
-        }
-      ]
-    },
-    {
-      label: "Settings",
-      icon: Settings,
-      href: `/${params.storeId}/settings`,
-      active: pathname === `/${params.storeId}/settings`,
-    },
-  ];
+  const onSignOut = async () => {
+    try {
+      await handleSignOut();
+      router.push('/sign-in');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
-    <aside 
-      className={cn(
-        "fixed left-0 top-16 h-[calc(100vh-4rem)] bg-background",
-        "transition-all duration-300 ease-in-out z-30",
-        "flex flex-col",
-        isCollapsed ? "w-[70px]" : "w-[280px]"
-      )}
-    >
-      <div className="relative h-full border-r border-r-accent/20">
-        <div className="absolute right-0 top-3">
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className={cn(
-              "flex items-center justify-center w-6 h-12 -mr-3",
-              "rounded-l-xl bg-primary/5 hover:bg-primary/10",
-              "transition-colors border-y border-l border-accent/20"
+    <>
+      <aside 
+        className={cn(
+          "fixed left-0 top-0 h-screen bg-background z-30",
+          "transition-all duration-300 ease-in-out",
+          "flex flex-col",
+          "border-r border-border/40",
+          isCollapsed ? "w-[70px]" : "w-[280px]"
+        )}
+      >
+        <div className="relative h-full">
+          {/* Top header section with gradient background */}
+          <div className={cn(
+            "h-16 flex items-center px-4",
+            "bg-gradient-to-r from-primary/5 to-background",
+            "border-b border-border/40"
+          )}>
+            {!isCollapsed && <StoreSwitcher items={stores} />}
+            {isCollapsed && store && (
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <span className="text-lg font-semibold text-primary">
+                  {store.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
             )}
-            aria-label="Toggle sidebar"
-          >
-            <Menu className="h-4 w-4" />
-          </button>
-        </div>
-        
-        <div className="h-full overflow-hidden">
-          <div className="h-full overflow-y-auto no-scrollbar px-3 py-4">
-            <div className="space-y-4">
-              {store && (
-                <div className={cn(
-                  "flex items-center gap-3 px-3.5 py-4",
-                  isCollapsed ? "justify-center" : "justify-start"
-                )}>
-                  {isCollapsed ? (
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-medium text-primary">
-                        {store.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  ) : (
-                    <h2 className="font-semibold text-lg truncate text-primary/80">
-                      {store.name}
-                    </h2>
-                  )}
-                </div>
+          </div>
+
+          {/* Collapse button with improved styling */}
+          <div className="absolute right-0 top-20">
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className={cn(
+                "flex items-center justify-center w-6 h-12 -mr-3",
+                "rounded-l-lg bg-primary/5",
+                "transition-all duration-200",
+                "border-y border-l border-border/40",
+                "hover:bg-primary/10 hover:border-primary/20",
+                "group"
               )}
-              
-              <nav className="space-y-1">
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </button>
+          </div>
+          
+          {/* Main content area */}
+          <div className="h-[calc(100%-4rem)] flex flex-col">
+            <div className="flex-1 overflow-y-auto scrollbar-none px-3 py-8">
+              <nav className="space-y-2">
                 {routes.map((route, index) => (
                   <div key={index}>
                     {route.items ? (
@@ -287,25 +118,40 @@ export function Sidebar({ store }: { store: Store | null }) {
                       >
                         <CollapsibleTrigger className="w-full">
                           <div className={cn(
-                            "group w-full rounded-lg border border-transparent",
+                            "group w-full rounded-lg",
                             "transition-all duration-200",
                             openCategories.includes(route.label)
-                              ? "bg-primary/5 border-primary/20"
-                              : "hover:bg-accent/5 hover:border-accent/10",
+                              ? "bg-primary/10"
+                              : "hover:bg-accent/5",
+                            "ring-offset-background",
+                            "hover:ring-2 hover:ring-primary/10",
                             isCollapsed && "justify-center"
                           )}>
-                            <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <div className="px-3 py-2.5 flex items-center justify-between">
                               <div className="flex items-center min-w-0 gap-3">
                                 {route.icon && (
-                                  <route.icon className={cn(
-                                    "h-4 w-4 shrink-0",
+                                  <div className={cn(
+                                    "p-1 rounded-md",
+                                    openCategories.includes(route.label)
+                                      ? "bg-primary/20"
+                                      : "bg-transparent group-hover:bg-primary/10",
+                                    "transition-colors"
+                                  )}>
+                                    <route.icon className={cn(
+                                      "h-4 w-4 shrink-0",
+                                      openCategories.includes(route.label)
+                                        ? "text-primary"
+                                        : "text-muted-foreground group-hover:text-foreground"
+                                    )} />
+                                  </div>
+                                )}
+                                {!isCollapsed && (
+                                  <span className={cn(
+                                    "text-sm font-medium truncate",
                                     openCategories.includes(route.label)
                                       ? "text-primary"
                                       : "text-muted-foreground group-hover:text-foreground"
-                                  )} />
-                                )}
-                                {!isCollapsed && (
-                                  <span className="text-sm font-medium truncate">
+                                  )}>
                                     {route.label}
                                   </span>
                                 )}
@@ -313,7 +159,9 @@ export function Sidebar({ store }: { store: Store | null }) {
                               {!isCollapsed && (
                                 <ChevronRight className={cn(
                                   "h-4 w-4 shrink-0 transition-transform",
-                                  openCategories.includes(route.label) && "rotate-90"
+                                  openCategories.includes(route.label)
+                                    ? "rotate-90 text-primary"
+                                    : "text-muted-foreground group-hover:text-foreground"
                                 )} />
                               )}
                             </div>
@@ -331,19 +179,21 @@ export function Sidebar({ store }: { store: Store | null }) {
                                 className="block"
                               >
                                 <div className={cn(
-                                  "rounded-lg border border-transparent",
+                                  "rounded-lg",
                                   "transition-all duration-200 group",
+                                  "ring-offset-background",
+                                  "hover:ring-2 hover:ring-primary/10",
                                   item.active
-                                    ? "bg-primary/5 border-primary/20"
-                                    : "hover:bg-accent/5 hover:border-accent/10",
-                                  isCollapsed ? "px-2 py-2" : "px-3.5 py-2"
+                                    ? "bg-primary/10"
+                                    : "hover:bg-accent/5",
+                                  isCollapsed ? "px-2 py-2" : "px-3 py-2"
                                 )}>
                                   <div className="flex items-center min-w-0 gap-3">
                                     <div className={cn(
-                                      "p-1 rounded shrink-0",
+                                      "p-1 rounded-md",
                                       item.active
-                                        ? "bg-primary/10"
-                                        : "bg-transparent group-hover:bg-accent/5"
+                                        ? "bg-primary/20"
+                                        : "bg-transparent group-hover:bg-primary/10"
                                     )}>
                                       {item.icon}
                                     </div>
@@ -351,7 +201,7 @@ export function Sidebar({ store }: { store: Store | null }) {
                                       <span className={cn(
                                         "text-sm truncate",
                                         item.active
-                                          ? "font-medium text-foreground"
+                                          ? "text-primary font-medium"
                                           : "text-muted-foreground group-hover:text-foreground"
                                       )}>
                                         {item.label}
@@ -367,20 +217,22 @@ export function Sidebar({ store }: { store: Store | null }) {
                     ) : route.href ? (
                       <Link href={route.href} className="block">
                         <div className={cn(
-                          "rounded-lg border border-transparent",
+                          "rounded-lg",
                           "transition-all duration-200 group",
+                          "ring-offset-background",
+                          "hover:ring-2 hover:ring-primary/10",
                           route.active
-                            ? "bg-primary/5 border-primary/20"
-                            : "hover:bg-accent/5 hover:border-accent/10",
-                          isCollapsed ? "px-2 py-2" : "px-3.5 py-2.5"
+                            ? "bg-primary/10"
+                            : "hover:bg-accent/5",
+                          isCollapsed ? "px-2 py-2" : "px-3 py-2.5"
                         )}>
                           <div className="flex items-center min-w-0 gap-3">
                             {route.icon && (
                               <div className={cn(
-                                "p-1 rounded shrink-0",
+                                "p-1 rounded-md",
                                 route.active
-                                  ? "bg-primary/10"
-                                  : "bg-transparent group-hover:bg-accent/5"
+                                  ? "bg-primary/20"
+                                  : "bg-transparent group-hover:bg-primary/10"
                               )}>
                                 <route.icon className={cn(
                                   "h-4 w-4",
@@ -394,7 +246,7 @@ export function Sidebar({ store }: { store: Store | null }) {
                               <span className={cn(
                                 "text-sm truncate",
                                 route.active
-                                  ? "font-medium text-foreground"
+                                  ? "text-primary font-medium"
                                   : "text-muted-foreground group-hover:text-foreground"
                               )}>
                                 {route.label}
@@ -408,9 +260,52 @@ export function Sidebar({ store }: { store: Store | null }) {
                 ))}
               </nav>
             </div>
+            
+            {/* Bottom controls */}
+            <div className="border-t border-border/40 bg-muted/5">
+              <div className={cn(
+                "px-3 py-4 space-y-3",
+                isCollapsed && "flex flex-col items-center"
+              )}>
+                <div className={cn(
+                  "flex items-center gap-4",
+                  isCollapsed ? "justify-center" : "px-2"
+                )}>
+                  <ThemeToggle /> 
+                  {!isCollapsed && (
+                    <>
+                      <Separator orientation="vertical" className="h-4" />
+                      <span className="text-xs text-muted-foreground">v1.0.0</span>
+                    </>
+                  )}
+                </div>
+                {!isCollapsed && <Separator className="bg-border/40" />}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={onSignOut}
+                  className={cn(
+                    "w-full flex items-center gap-2 text-muted-foreground",
+                    "hover:text-primary hover:bg-primary/5",
+                    isCollapsed ? "px-0 justify-center" : "px-2",
+                    "transition-colors"
+                  )}
+                >
+                  <LogOut className="h-4 w-4" />
+                  {!isCollapsed && "Sign Out"}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+      <div 
+        className={cn(
+          "fixed inset-0 bg-black/20 z-20",
+          isCollapsed ? "hidden" : "lg:hidden"
+        )}
+        onClick={() => setIsCollapsed(true)}
+      />
+    </>
   );
 }
