@@ -33,6 +33,7 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith('/static') || 
       pathname.startsWith('/api/auth') || 
       pathname.startsWith('/api/image-proxy') || 
+      pathname.startsWith('/api/store') ||
       pathname.startsWith('/favicon.ico')
     ) {
       return NextResponse.next();
@@ -77,6 +78,7 @@ export async function middleware(request: NextRequest) {
 
     // Get store domain from hostname
     let storeDomain: string;
+    console.log('[MIDDLEWARE_DEBUG] Original hostname:', hostname);
     
     if (hostname.includes('lvh.me:3000')) {
       // Handle local development domain
@@ -98,6 +100,8 @@ export async function middleware(request: NextRequest) {
       }
       storeDomain = parts[0];
     }
+
+    console.log('[MIDDLEWARE_DEBUG] Extracted storeDomain:', storeDomain);
 
     // Check store authentication if accessing private store routes
     const isStoreAuthRoute = pathname.startsWith('/profile') || 

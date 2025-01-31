@@ -14,7 +14,6 @@ type RawStore = {
 
 export async function getStoreByDomain(domainName: string): Promise<StoreWithDetails | null> {
   try {
-    // Find store by domain using raw query
     // Clean up domain name
     let cleanDomain = domainName;
     
@@ -34,22 +33,9 @@ export async function getStoreByDomain(domainName: string): Promise<StoreWithDet
     console.log('[GET_STORE_DEBUG] Original domain:', domainName);
     console.log('[GET_STORE_DEBUG] Cleaned domain:', cleanDomain);
 
-    const rawQuery = Prisma.sql`
-      SELECT id FROM "Store"
-      WHERE domain = ${cleanDomain}
-      LIMIT 1
-    `;
-
-    const stores = await prismadb.$queryRaw<RawStore[]>(rawQuery);
-
-    if (!stores || stores.length === 0) {
-      return null;
-    }
-
-    // Get full store details using Prisma client
-    const store = await prismadb.store.findUnique({
+    const store = await prismadb.store.findFirst({
       where: {
-        id: stores[0].id
+        domain: cleanDomain
       },
       include: {
         billboards: {
@@ -119,21 +105,26 @@ export async function getStorePublicData(domainName: string): Promise<StorePubli
     console.log('[GET_STORE_DEBUG] Original domain:', domainName);
     console.log('[GET_STORE_DEBUG] Cleaned domain:', cleanDomain);
 
-    const rawQuery = Prisma.sql`
-      SELECT
-        id, name, domain, "logoUrl", "faviconUrl", "customCss", currency
-      FROM "Store"
-      WHERE domain = ${cleanDomain}
-      LIMIT 1
-    `;
+    const store = await prismadb.store.findFirst({
+      where: {
+        domain: cleanDomain
+      },
+      select: {
+        id: true,
+        name: true,
+        domain: true,
+        logoUrl: true,
+        faviconUrl: true,
+        customCss: true,
+        currency: true
+      }
+    });
 
-    const stores = await prismadb.$queryRaw<RawStore[]>(rawQuery);
-
-    if (!stores || stores.length === 0) {
+    if (!store) {
       return null;
     }
 
-    return stores[0] as StorePublicData;
+    return store as StorePublicData;
   } catch (error) {
     console.error('[GET_STORE_PUBLIC_DATA]', error);
     return null;
