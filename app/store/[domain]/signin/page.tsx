@@ -54,17 +54,28 @@ export default function CustomerSignInPage({ params }: CustomerSignInPageProps) 
         withCredentials: true
       });
       
-      if (response.data) {
-        toast.success('Logged in successfully.');
+      const { success, data: authData } = response.data as { success: boolean; data: { id: string; email: string; } };
+      if (success && authData) {
         // Force re-fetch of auth state
-        await fetch(`/api/auth/customer/profile?domain=${params.domain}`, {
+        const profileResponse = await fetch(`/api/auth/customer/profile?domain=${params.domain}`, {
           credentials: 'include',
           headers: {
             'Cache-Control': 'no-cache'
           }
         });
-        router.refresh(); // Refresh server components
-        router.replace(`/store/${params.domain}`);
+
+        if (!profileResponse.ok) {
+          throw new Error('Failed to verify login status');
+        }
+
+        const { success: profileSuccess } = await profileResponse.json();
+        if (profileSuccess) {
+          toast.success('Logged in successfully.');
+          router.refresh(); // Refresh server components
+          router.replace(`/store/${params.domain}`);
+        } else {
+          throw new Error('Failed to verify login status');
+        }
       }
     } catch (error) {
       toast.error('Invalid credentials.');

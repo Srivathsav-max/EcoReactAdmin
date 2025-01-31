@@ -91,8 +91,8 @@ export const Navbar: React.FC<NavbarProps> = ({ taxonomies = [] }) => {
         });
         
         if (response.ok) {
-          const data = await response.json();
-          if (data?.id) {
+          const { success, data } = await response.json();
+          if (success && data?.id) {
             setIsAuthenticated(true);
             return;
           }
