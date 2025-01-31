@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { getFilePreviewUrl } from '@/lib/appwrite-config';
 
 export async function GET(

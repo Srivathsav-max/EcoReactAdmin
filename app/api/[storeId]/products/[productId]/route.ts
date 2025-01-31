@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import prismadb from "@/lib/prismadb";
 import { deleteFile } from "@/lib/appwrite-config";
 import { getAdminSession } from "@/lib/auth";
