@@ -207,7 +207,7 @@ export const VariantTable: React.FC<VariantTableProps> = ({
                     </div>
                   ) : (
                     <div className="text-sm text-muted-foreground">
-                      No variants found. Click the "Add Variant" button to create one.
+                      No variants found. Click the &quot;Add Variant&quot; button to create one.
                     </div>
                   )}
                 </TableCell>

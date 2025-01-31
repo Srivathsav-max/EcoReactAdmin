@@ -132,7 +132,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (isAuthenticated && !cart.items.length) {
       cart.fetchCart();
     }
-  }, [isAuthenticated]); // Only depend on authentication state
+  }, [isAuthenticated, cart.items.length, cart.fetchCart]);
 
   useEffect(() => {
     const handleScroll = () => {

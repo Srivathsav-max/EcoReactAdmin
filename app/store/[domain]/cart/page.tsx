@@ -15,7 +15,7 @@ export default function CartPage() {
   useEffect(() => {
     // Initialize cart data
     cart.fetchCart();
-  }, []);  // Remove cart from dependencies to prevent infinite fetching
+  }, [cart.fetchCart]);
 
   if (cart.isLoading) {
     return (

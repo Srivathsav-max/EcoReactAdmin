@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { getStorePublicData } from "@/actions/get-store-by-domain";
 import { useParams, useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -120,7 +121,7 @@ export default function CheckoutPage() {
     };
 
     loadData();
-  }, [domain, form, cart.customerId, cart.items.length]);  // Track auth state changes
+  }, [domain, form, cart.customerId, cart.items.length, cart.fetchCart]);
 
   const onSubmit = async (data: CheckoutFormValues) => {
     try {
@@ -188,11 +189,13 @@ export default function CheckoutPage() {
           <div className="space-y-4">
             {cart.items.map((item) => (
               <div key={item.id} className="flex items-center gap-4">
-                <div className="w-16 h-16 relative">
-                  <img
+                <div className="relative w-16 h-16">
+                  <Image
                     src={item.variant.images?.[0]?.url || '/placeholder.png'}
                     alt={item.variant.name}
+                    fill
                     className="object-cover rounded"
+                    sizes="64px"
                   />
                 </div>
                 <div className="flex-1">
