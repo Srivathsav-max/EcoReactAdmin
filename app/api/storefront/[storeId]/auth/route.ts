@@ -61,7 +61,12 @@ export async function POST(
       }
     });
   } catch (error) {
-    console.log('[CUSTOMER_AUTH]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[CUSTOMER_AUTH] Detailed error:', {
+      error,
+      stack: error instanceof Error ? error.stack : undefined,
+      type: error instanceof Error ? error.constructor.name : typeof error,
+      message: error instanceof Error ? error.message : String(error)
+    });
+    return new NextResponse(`Internal error: ${error instanceof Error ? error.message : 'Unknown error'}`, { status: 500 });
   }
 }

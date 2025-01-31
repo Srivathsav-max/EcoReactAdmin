@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
-import { getStorePublicData } from "@/actions/get-store-by-domain";
 import { useRouter, useSearchParams } from "next/navigation";
 import { isCustomerAuthenticated } from "@/lib/client-auth";
 import { useForm } from "react-hook-form";
@@ -60,11 +59,10 @@ export default function CustomerSignInPage({ params }: CustomerSignInPageProps) 
   const onSubmit = async (data: SignInFormValues) => {
     try {
       setLoading(true);
-      // Get store details
-      const store = await getStorePublicData(params.domain);
-      if (!store) {
-        throw new Error("Store not found");
-      }
+      
+      // Get store details from API
+      const storeResponse = await axios.get(`/api/store/domain?domain=${params.domain}`);
+      const store = storeResponse.data;
       
       // Sign in with store ID
       const response = await axios.post(`/api/storefront/${store.id}/auth`, data);
@@ -79,10 +77,13 @@ export default function CustomerSignInPage({ params }: CustomerSignInPageProps) 
         router.replace(redirect || `/store/${params.domain}`);
       }
     } catch (error: any) {
-      if (error.response?.status === 401) {
+      if (error.response?.status === 404) {
+        toast.error('Store not found.');
+      } else if (error.response?.status === 401) {
         toast.error('Invalid credentials.');
       } else {
         toast.error('Something went wrong.');
+        console.error('Sign in error:', error);
       }
     } finally {
       setLoading(false);
@@ -143,7 +144,7 @@ export default function CustomerSignInPage({ params }: CustomerSignInPageProps) 
         </form>
       </Form>
       <div className="mt-4 text-center text-sm text-muted-foreground">
-      Don&apos;t have an account?{' '}
+        Don&apos;t have an account?{' '}
         <Link 
           href={`/store/${params.domain}/signup`}
           className="text-primary hover:underline"

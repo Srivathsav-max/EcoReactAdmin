@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { getStorePublicData } from "@/actions/get-store-by-domain";
 import { useRouter, useSearchParams } from "next/navigation";
 import { isCustomerAuthenticated } from "@/lib/client-auth";
 import { useForm } from "react-hook-form";
@@ -67,11 +66,10 @@ export default function CustomerSignUpPage({ params }: CustomerSignUpPageProps) 
   const onSubmit = async (data: SignUpFormValues) => {
     try {
       setLoading(true);
-      // Get store details
-      const store = await getStorePublicData(params.domain);
-      if (!store) {
-        throw new Error("Store not found");
-      }
+      
+      // Get store details from API
+      const storeResponse = await axios.get(`/api/store/domain?domain=${params.domain}`);
+      const store = storeResponse.data;
       
       // Register with store ID
       const response = await axios.post(`/api/storefront/${store.id}/register`, {
@@ -90,10 +88,10 @@ export default function CustomerSignUpPage({ params }: CustomerSignUpPageProps) 
         router.replace(redirect || `/store/${params.domain}`);
       }
     } catch (error: any) {
-      if (error.response?.status === 400 && error.response?.data === "Email already in use") {
-        toast.error('An account with this email already exists.');
-      } else if (error.response?.status === 404) {
+      if (error.response?.status === 404) {
         toast.error('Store not found.');
+      } else if (error.response?.status === 400 && error.response?.data === "Email already in use") {
+        toast.error('An account with this email already exists.');
       } else {
         toast.error('Something went wrong.');
         console.error('Registration error:', error);
