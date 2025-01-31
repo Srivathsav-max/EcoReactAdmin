@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { getStorePublicData } from "@/actions/get-store-by-domain";
+import { useRouter, useSearchParams } from "next/navigation";
+import { isCustomerAuthenticated } from "@/lib/client-auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -41,7 +43,16 @@ type SignUpFormValues = z.infer<typeof formSchema>;
 
 export default function CustomerSignUpPage({ params }: CustomerSignUpPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+
+  // Check if user is already logged in using cookie
+  useEffect(() => {
+    if (isCustomerAuthenticated()) {
+      const redirect = searchParams.get('redirect');
+      router.replace(redirect || `/store/${params.domain}`);
+    }
+  }, [params.domain, router, searchParams]);
 
   const form = useForm<SignUpFormValues>({
     resolver: zodResolver(formSchema),
@@ -56,19 +67,36 @@ export default function CustomerSignUpPage({ params }: CustomerSignUpPageProps) 
   const onSubmit = async (data: SignUpFormValues) => {
     try {
       setLoading(true);
-      // Pass domain to identify the store
-      await axios.post(`/api/auth/customer/signup?domain=${params.domain}`, {
+      // Get store details
+      const store = await getStorePublicData(params.domain);
+      if (!store) {
+        throw new Error("Store not found");
+      }
+      
+      // Register with store ID
+      const response = await axios.post(`/api/storefront/${store.id}/register`, {
         name: data.name,
         email: data.email,
         password: data.password,
       });
-      toast.success('Account created successfully.');
-      router.push(`/store/${params.domain}/signin`);
+
+      const { customer } = response.data;
+      if (customer) {
+        toast.success('Account created successfully!');
+        router.refresh();
+        
+        // Check for redirect parameter
+        const redirect = searchParams.get('redirect');
+        router.replace(redirect || `/store/${params.domain}`);
+      }
     } catch (error: any) {
-      if (error.response?.status === 409) {
+      if (error.response?.status === 400 && error.response?.data === "Email already in use") {
         toast.error('An account with this email already exists.');
+      } else if (error.response?.status === 404) {
+        toast.error('Store not found.');
       } else {
         toast.error('Something went wrong.');
+        console.error('Registration error:', error);
       }
     } finally {
       setLoading(false);

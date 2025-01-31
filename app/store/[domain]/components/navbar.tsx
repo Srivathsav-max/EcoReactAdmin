@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useParams, useRouter } from "next/navigation";
 import { ShoppingBag, Moon, Sun, User, Store, ChevronDown, Search, ChevronRight } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -33,6 +34,10 @@ interface Category {
 
 interface NavbarProps {
   taxonomies: Category[];
+  store: {
+    name: string;
+    logoUrl: string | null;
+  };
 }
 
 const NestedDropdown: React.FC<{
@@ -68,7 +73,10 @@ const NestedDropdown: React.FC<{
   );
 };
 
-export const Navbar: React.FC<NavbarProps> = ({ taxonomies = [] }) => {
+export const Navbar: React.FC<NavbarProps> = ({ 
+  taxonomies = [], 
+  store = { name: "Store", logoUrl: null }  // Default values
+}) => {
   const pathname = usePathname();
   const params = useParams();
   const router = useRouter();
@@ -163,8 +171,18 @@ export const Navbar: React.FC<NavbarProps> = ({ taxonomies = [] }) => {
               href={`/store/${domain}`} 
               className="flex items-center gap-x-2 hover:opacity-90 transition-opacity"
             >
-              <Store className="h-8 w-8" />
-              <p className="font-bold text-2xl tracking-tight">STORE</p>
+              {store?.logoUrl ? (
+                <Image
+                  src={store.logoUrl}
+                  alt={store?.name || "Store"}
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                  priority
+                />
+              ) : (
+                <p className="font-bold text-2xl tracking-tight">{store?.name || "Store"}</p>
+              )}
             </Link>
 
             {/* Search Bar */}

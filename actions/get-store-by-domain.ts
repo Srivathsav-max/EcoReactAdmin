@@ -15,10 +15,24 @@ type RawStore = {
 export async function getStoreByDomain(domainName: string): Promise<StoreWithDetails | null> {
   try {
     // Find store by domain using raw query
-    // Clean up domain for lvh.me local development
-    const cleanDomain = domainName.includes('.lvh.me:3000')
-      ? domainName.split('.lvh.me:3000')[0]
-      : domainName.replace('www.', '');
+    // Clean up domain name
+    let cleanDomain = domainName;
+    
+    // Handle local development domains
+    if (cleanDomain.includes('.lvh.me')) {
+      cleanDomain = cleanDomain.split('.lvh.me')[0];
+    }
+    
+    // Handle development domains with port
+    if (cleanDomain.includes(':')) {
+      cleanDomain = cleanDomain.split(':')[0];
+    }
+    
+    // Remove www and any other subdomains
+    cleanDomain = cleanDomain.split('.').slice(-2).join('.');
+    
+    console.log('[GET_STORE_DEBUG] Original domain:', domainName);
+    console.log('[GET_STORE_DEBUG] Cleaned domain:', cleanDomain);
 
     const rawQuery = Prisma.sql`
       SELECT id FROM "Store"
@@ -86,10 +100,24 @@ export async function getStoreByDomain(domainName: string): Promise<StoreWithDet
 
 export async function getStorePublicData(domainName: string): Promise<StorePublicData | null> {
   try {
-    // Clean up domain for lvh.me local development
-    const cleanDomain = domainName.includes('.lvh.me:3000')
-      ? domainName.split('.lvh.me:3000')[0]
-      : domainName.replace('www.', '');
+    // Clean up domain name
+    let cleanDomain = domainName;
+    
+    // Handle local development domains
+    if (cleanDomain.includes('.lvh.me')) {
+      cleanDomain = cleanDomain.split('.lvh.me')[0];
+    }
+    
+    // Handle development domains with port
+    if (cleanDomain.includes(':')) {
+      cleanDomain = cleanDomain.split(':')[0];
+    }
+    
+    // Remove www and any other subdomains
+    cleanDomain = cleanDomain.split('.').slice(-2).join('.');
+    
+    console.log('[GET_STORE_DEBUG] Original domain:', domainName);
+    console.log('[GET_STORE_DEBUG] Cleaned domain:', cleanDomain);
 
     const rawQuery = Prisma.sql`
       SELECT

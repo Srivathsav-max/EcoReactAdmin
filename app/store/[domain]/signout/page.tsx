@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { getStorePublicData } from "@/actions/get-store-by-domain";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 
@@ -12,20 +13,27 @@ export default function SignOutPage() {
   useEffect(() => {
     const signOut = async () => {
       try {
-        const response = await fetch(`/api/auth/customer/signout?domain=${domain}`, {
+        // Get store details
+        const store = await getStorePublicData(domain as string);
+        if (!store) {
+          throw new Error("Store not found");
+        }
+        
+        // Sign out with store ID
+        const response = await fetch(`/api/storefront/${store.id}/logout`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-          },
-          credentials: 'include', // Important for cookie handling
+          }
         });
 
-        if (response.ok) {
-          toast.success("Successfully signed out");
-          router.push(`/store/${domain}/signin`);
-        } else {
+        if (!response.ok) {
           throw new Error("Failed to sign out");
         }
+
+        toast.success("Successfully signed out");
+        router.refresh();
+        router.push(`/store/${domain}/signin`);
       } catch (error) {
         toast.error("Something went wrong");
         router.push(`/store/${domain}/signin`);
