@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  outputFileTracing: true,
   images: {
     domains: [
       'cloud.appwrite.io',
@@ -16,8 +17,8 @@ const nextConfig = {
       bodySizeLimit: '2mb'
     },
     appDir: true, // Ensures App Router compatibility
-    packagerOptions: {
-      externalPackages: ["@prisma/client", "prisma"] // Exclude Prisma from being bundled incorrectly
+    outputFileTracingIncludes: {
+      '/*': ['./node_modules/.prisma/**/*', './node_modules/@prisma/client/**/*']
     }
   },
   typescript: {
