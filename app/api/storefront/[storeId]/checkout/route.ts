@@ -58,7 +58,7 @@ export async function POST(
         throw new Error("Cart is empty");
       }
 
-      // Check stock availability and calculate total
+      // Check stock availability and reserve stock
       let orderTotal = 0;
       for (const item of cart.orderItems) {
         const stockItem = await tx.stockItem.findUnique({
@@ -70,11 +70,40 @@ export async function POST(
           }
         });
 
-        if (!stockItem || stockItem.count < item.quantity) {
+        if (!stockItem) {
+          throw new Error(`Stock item not found for variant ${item.variantId}`);
+        }
+
+        const availableStock = stockItem.count - stockItem.reserved;
+        if (availableStock < item.quantity) {
           throw new Error(`Insufficient stock for variant ${item.variantId}`);
         }
 
         orderTotal += Number(item.price) * item.quantity;
+
+        // Create reservation
+        await tx.stockItem.update({
+          where: {
+            id: stockItem.id
+          },
+          data: {
+            reserved: {
+              increment: item.quantity
+            }
+          }
+        });
+
+        // Create stock movement for reservation
+        await tx.stockMovement.create({
+          data: {
+            variantId: item.variantId,
+            stockItemId: stockItem.id,
+            quantity: item.quantity,
+            type: "reserved",
+            reason: `Order ${cart.id} - Initial reservation`,
+            originatorType: "system"
+          }
+        });
       }
 
       // Update order status and payment details
@@ -99,31 +128,45 @@ export async function POST(
         }
       });
 
-      // Update stock levels and create stock movements
+      // Process shipment for each item
       for (const item of cart.orderItems) {
-        // Update stock item
-        const stockItem = await tx.stockItem.update({
+        const stockItem = await tx.stockItem.findUnique({
           where: {
             variantId_storeId: {
               variantId: item.variantId,
               storeId
             }
+          }
+        });
+
+        if (!stockItem) {
+          throw new Error(`Stock item not found for variant ${item.variantId}`);
+        }
+
+        // Update stock counts
+        await tx.stockItem.update({
+          where: {
+            id: stockItem.id
           },
           data: {
             count: {
+              decrement: item.quantity
+            },
+            reserved: {
               decrement: item.quantity
             }
           }
         });
 
-        // Create stock movement record
+        // Create stock movement for shipment
         await tx.stockMovement.create({
           data: {
             variantId: item.variantId,
             stockItemId: stockItem.id,
-            quantity: -item.quantity,
-            type: "sale",
-            reason: `Order ${cart.id}`
+            quantity: item.quantity,
+            type: "shipped",
+            reason: `Order ${cart.id} - Items shipped`,
+            originatorType: "system"
           }
         });
       }

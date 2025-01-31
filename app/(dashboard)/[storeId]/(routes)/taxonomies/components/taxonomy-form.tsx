@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import axios from "axios";
+import { Spinner } from "@/components/ui/spinner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -122,10 +123,10 @@ export const TaxonomyForm: React.FC<TaxonomyFormProps> = ({
           </div>
           <Button disabled={loading} type="submit">
             {loading ? (
-              <>
-                <span className="loading loading-spinner"></span>
-                Creating...
-              </>
+              <div className="flex items-center justify-center gap-2">
+                <Spinner size={18} />
+                <span>{initialData ? "Saving..." : "Creating..."}</span>
+              </div>
             ) : (
               action
             )}

@@ -7,6 +7,8 @@ import CartItems from "../components/cart-items";
 import { Button } from "@/components/ui/button";
 import { Currency } from "@/components/ui/currency";
 import useCart from "@/hooks/use-cart";
+import { Loader } from "@/components/ui/loader";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function CartPage() {
   const cart = useCart();
@@ -22,8 +24,7 @@ export default function CartPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="loading loading-spinner loading-lg"></div>
-            <p className="mt-4 text-muted-foreground">Loading cart...</p>
+            <Loader variant="dots" />
           </div>
         </div>
       </div>
@@ -80,7 +81,14 @@ export default function CartPage() {
               disabled={cart.isLoading || cart.items.length === 0}
               size="lg"
             >
-              {cart.isLoading ? "Loading..." : "Proceed to Checkout"}
+              {cart.isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <Spinner size={20} />
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                "Proceed to Checkout"
+              )}
             </Button>
           </div>
           <div className="mt-4 text-sm text-gray-500">
