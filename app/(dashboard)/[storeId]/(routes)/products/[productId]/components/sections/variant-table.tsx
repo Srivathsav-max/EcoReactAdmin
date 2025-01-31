@@ -23,10 +23,13 @@ interface VariantTableProps {
     name: string;
     sku: string;
     price: number;
-    stockCount?: number;
     isVisible: boolean;
     color?: { name: string; value: string };
     size?: { name: string; value: string };
+    stockItems?: Array<{
+      count: number;
+      stockStatus: string;
+    }>;
   }>;
   onUpdate: () => void;
   colors: Array<{ id: string; name: string; value: string }>;
@@ -128,7 +131,22 @@ export const VariantTable: React.FC<VariantTableProps> = ({
                     currency: 'USD'
                   }).format(variant.price || 0)}
                 </TableCell>
-                <TableCell>{variant.stockCount || 0}</TableCell>
+                <TableCell>
+                  {variant.stockItems && variant.stockItems[0] ? (
+                    <div className="flex items-center gap-x-2">
+                      <span>{variant.stockItems[0].count}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${
+                        variant.stockItems[0].stockStatus === 'in_stock' 
+                          ? "bg-green-100 text-green-800" 
+                          : "bg-red-100 text-red-800"
+                      }`}>
+                        {variant.stockItems[0].stockStatus === 'in_stock' ? 'In Stock' : 'Out of Stock'}
+                      </span>
+                    </div>
+                  ) : (
+                    0
+                  )}
+                </TableCell>
                 <TableCell>
                   {variant.color ? (
                     <div className="flex items-center gap-x-2">

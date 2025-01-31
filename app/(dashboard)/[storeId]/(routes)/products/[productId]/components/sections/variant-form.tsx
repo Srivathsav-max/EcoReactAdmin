@@ -1,8 +1,8 @@
 import * as z from "zod";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   sku: z.string().min(1, "SKU is required"),
-  price: z.coerce.number().min(0, "Price must be a non-negative number"),
+  price: z.coerce.number().min(0, "Price must be a non-negative number").transform(value => parseFloat(value.toFixed(2))),
   costPrice: z.coerce.number().min(0, "Cost price must be a non-negative number").optional(),
   compareAtPrice: z.coerce.number().min(0, "Compare at price must be a non-negative number").optional(),
   colorId: z.string().optional(),
@@ -36,7 +36,11 @@ const formSchema = z.object({
   width: z.coerce.number().min(0).optional(),
   depth: z.coerce.number().min(0).optional(),
   allowBackorder: z.boolean().default(false),
-  stockCount: z.coerce.number().min(0, "Stock count must be a non-negative number").optional(),
+  stockCount: z.coerce
+    .number()
+    .min(0, "Stock count must be a non-negative number")
+    .transform(val => Math.max(0, Math.floor(val)))
+    .default(0),
 });
 
 type VariantFormData = z.infer<typeof formSchema>;
@@ -57,92 +61,141 @@ export const VariantForm: React.FC<VariantFormProps> = ({
   onSubmit: onSubmitCallback
 }) => {
   const params = useParams();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Extract stock count from initial data's stockItems
+  const getInitialData = () => {
+    if (!initialData) {
+      return {
+        name: "",
+        sku: "",
+        price: 0,
+        costPrice: undefined,
+        compareAtPrice: undefined,
+        colorId: undefined,
+        sizeId: undefined,
+        isVisible: true,
+        trackInventory: true,
+        minimumQuantity: 1,
+        maximumQuantity: undefined,
+        weight: undefined,
+        height: undefined,
+        width: undefined,
+        depth: undefined,
+        allowBackorder: false,
+        stockCount: 0,
+      };
+    }
+
+    // Get stock count from stockItems if available
+    const stockItem = initialData.stockItems?.[0];
+    const stockCount = stockItem?.count ?? 0;
+
+    // Remove stockItems from the data we pass to the form
+    const { stockItems, ...rest } = initialData;
+
+    return {
+      ...rest,
+      stockCount,
+    };
+  };
 
   const form = useForm<VariantFormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
-      name: "",
-      sku: "",
-      price: 0,
-      costPrice: undefined,
-      compareAtPrice: undefined,
-      colorId: undefined,
-      sizeId: undefined,
-      isVisible: true,
-      trackInventory: true,
-      minimumQuantity: 1,
-      maximumQuantity: undefined,
-      weight: undefined,
-      height: undefined,
-      width: undefined,
-      depth: undefined,
-      allowBackorder: false,
-      stockCount: 0,
-    }
+    defaultValues: getInitialData()
   });
 
-  const onSubmit = async (values: VariantFormData) => {
+  const onDelete = async () => {
+    try {
+      setIsDeleting(true);
+      
+      if (!initialData?.id) {
+        throw new Error("Cannot delete: No variant ID");
+      }
+
+      const response = await fetch(`/api/${params.storeId}/variants/${initialData.id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete variant');
+      }
+
+      toast.success("Variant deleted successfully");
+      onSubmitCallback(true);
+    } catch (error) {
+      console.error('Variant delete error:', error);
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     try {
       setLoading(true);
+      const values = form.getValues();
       
       const formattedData = {
         ...values,
-        price: parseFloat(values.price.toString()),
-        costPrice: values.costPrice ? parseFloat(values.costPrice.toString()) : undefined,
-        compareAtPrice: values.compareAtPrice ? parseFloat(values.compareAtPrice.toString()) : undefined,
-        stockCount: values.stockCount ? parseInt(values.stockCount.toString()) : 0,
+        price: Number(values.price),
+        costPrice: values.costPrice ? Number(values.costPrice) : null,
+        compareAtPrice: values.compareAtPrice ? Number(values.compareAtPrice) : null,
+        stockCount: Math.max(0, Math.floor(Number(values.stockCount || 0))),
+        minimumQuantity: Number(values.minimumQuantity),
+        maximumQuantity: values.maximumQuantity ? Number(values.maximumQuantity) : null,
+        weight: values.weight ? Number(values.weight) : null,
+        height: values.height ? Number(values.height) : null,
+        width: values.width ? Number(values.width) : null,
+        depth: values.depth ? Number(values.depth) : null,
+        // Only include productId when creating a new variant
+        ...(initialData ? {} : { productId }),
       };
-      
+
       const url = initialData 
         ? `/api/${params.storeId}/variants/${initialData.id}`
         : `/api/${params.storeId}/products/${productId}/variants`;
 
-      console.log('Making API call to:', url);
-      console.log('With data:', formattedData);
-
       const response = await fetch(url, {
         method: initialData ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formattedData)
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+        body: JSON.stringify(formattedData),
       });
 
-      console.log('API Response status:', response.status);
-
-      const result = await response.json();
-      
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to save variant');
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save variant');
       }
 
-      toast.success(initialData ? "Variant updated." : "Variant created.");
-      onSubmitCallback(true);
+      const data = await response.json();
       
+      toast.success(initialData ? "Variant updated." : "Variant created.");
+      router.refresh();
+      onSubmitCallback(true);
     } catch (error) {
-      console.error('Variant save error:', error);
+      console.error('Form submission error:', error);
       toast.error(error instanceof Error ? error.message : "Something went wrong");
       onSubmitCallback(false);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    try {
-      e.preventDefault();
-      console.log('Form submitted');
-      const values = form.getValues();
-      console.log('Form values:', values);
-      await onSubmit(values);
-    } catch (error) {
-      console.error('Form submission error:', error);
-      toast.error('Failed to submit form');
-    }
-  };
+  }, [form, initialData, params.storeId, productId, router, onSubmitCallback]);
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form 
+        className="space-y-8 w-full" 
+        onSubmit={handleSubmit}
+      >
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
           <FormField
             control={form.control}
@@ -229,10 +282,16 @@ export const VariantForm: React.FC<VariantFormProps> = ({
                 <FormLabel>Stock Count</FormLabel>
                 <FormControl>
                   <Input 
-                    type="number" 
+                    type="number"
+                    min="0"
+                    step="1"
                     disabled={loading} 
                     {...field}
-                    value={field.value || ''}
+                    value={field.value ?? 0}
+                    onChange={(e) => {
+                      const value = e.target.value ? Math.max(0, Math.floor(Number(e.target.value))) : 0;
+                      field.onChange(value);
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -368,16 +427,43 @@ export const VariantForm: React.FC<VariantFormProps> = ({
           />
         </div>
 
-        <Button disabled={loading} type="submit" className="ml-auto">
-          {loading ? (
-            <div className="flex items-center gap-x-2">
-              <Spinner size={16} />
-              <span>Saving...</span>
-            </div>
+        <div className="flex items-center justify-end gap-4 mt-6">
+          {initialData ? (
+            <>
+              <Button
+                disabled={isDeleting || loading}
+                variant="destructive"
+                type="button"
+                onClick={onDelete}
+              >
+                {isDeleting ? "Deleting..." : "Delete Variant"}
+              </Button>
+              <Button 
+                disabled={loading}
+                type="submit"
+                variant="default"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }}
+              >
+                {loading ? "Saving..." : "Save Changes"}
+              </Button>
+            </>
           ) : (
-            initialData ? "Save changes" : "Create"
+            <Button 
+              disabled={loading}
+              type="submit"
+              variant="default"
+              onClick={(e) => {
+                e.preventDefault();
+                handleSubmit(e);
+              }}
+            >
+              {loading ? "Creating..." : "Create Variant"}
+            </Button>
           )}
-        </Button>
+        </div>
       </form>
     </Form>
   );

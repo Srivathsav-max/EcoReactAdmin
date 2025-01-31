@@ -65,24 +65,27 @@ export async function POST(
 
     const body = await req.json();
 
+    // Remove stockCount from variant data as it's not a field in the Variant model
+    const { stockCount, ...variantData } = body;
+
     const variant = await prismadb.variant.create({
       data: {
-        ...body,
+        ...variantData,
         productId: params.productId,
+        stockItems: {
+          create: {
+            storeId: params.storeId,
+            count: stockCount || 0,
+            stockStatus: (stockCount || 0) > 0 ? 'in_stock' : 'out_of_stock'
+          }
+        }
+      },
+      include: {
+        stockItems: true,
+        color: true,
+        size: true
       }
     });
-
-    // Create stock item for the variant
-    if (body.stockCount !== undefined) {
-      await prismadb.stockItem.create({
-        data: {
-          variantId: variant.id,
-          storeId: params.storeId,
-          count: body.stockCount,
-          stockStatus: body.stockCount > 0 ? 'in_stock' : 'out_of_stock'
-        }
-      });
-    }
 
     return NextResponse.json({
       success: true,
