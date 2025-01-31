@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession, isAdmin } from "@/lib/auth";
+import { getAdminSession, isAdmin } from "@/lib/auth";
 import prismadb from "@/lib/prismadb";
 
 export async function PATCH(
@@ -7,10 +7,13 @@ export async function PATCH(
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAdminSession();
 
     if (!session || !isAdmin(session)) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized"
+      }, { status: 401 });
     }
 
     const body = await req.json();
@@ -25,32 +28,63 @@ export async function PATCH(
     } = body;
 
     if (!name) {
-      return new NextResponse("Name is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Name is required"
+      }, { status: 400 });
     }
 
     if (!params.storeId) {
-      return new NextResponse("Store id is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Store ID is required"
+      }, { status: 400 });
     }
 
-    const store = await prismadb.store.updateMany({
+    // Check if domain is unique if provided
+    if (domain) {
+      const existingStore = await prismadb.store.findFirst({
+        where: {
+          domain,
+          NOT: {
+            id: params.storeId
+          }
+        }
+      });
+
+      if (existingStore) {
+        return NextResponse.json({
+          success: false,
+          message: "Domain is already in use"
+        }, { status: 400 });
+      }
+    }
+
+    // Use update instead of updateMany to get the updated store data
+    const store = await prismadb.store.update({
       where: {
-        id: params.storeId,
-        userId: session.userId
+        id: params.storeId
       },
       data: {
-        name,
-        domain,
-        customCss,
-        logoUrl,
-        faviconUrl,
-        themeSettings
+        name: String(name),
+        domain: domain ? String(domain) : null,
+        customCss: customCss ? String(customCss) : null,
+        logoUrl: logoUrl ? String(logoUrl) : null,
+        faviconUrl: faviconUrl ? String(faviconUrl) : null,
+        themeSettings: themeSettings || null,
       }
     });
 
-    return NextResponse.json(store);
+    return NextResponse.json({
+      success: true,
+      data: store
+    });
   } catch (error) {
-    console.log('[STORE_PATCH]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[STORE_PATCH]', error);
+    return NextResponse.json({
+      success: false,
+      message: error instanceof Error ? error.message : "Internal error"
+    }, { status: 500 });
   }
 }
 
@@ -59,26 +93,38 @@ export async function DELETE(
   { params }: { params: { storeId: string } }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAdminSession();
 
     if (!session || !isAdmin(session)) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized"
+      }, { status: 401 });
     }
 
     if (!params.storeId) {
-      return new NextResponse("Store id is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Store ID is required"
+      }, { status: 400 });
     }
 
-    const store = await prismadb.store.deleteMany({
+    // Use delete instead of deleteMany since we're deleting by unique ID
+    const store = await prismadb.store.delete({
       where: {
-        id: params.storeId,
-        userId: session.userId
+        id: params.storeId
       }
     });
 
-    return NextResponse.json(store);
+    return NextResponse.json({
+      success: true,
+      data: store
+    });
   } catch (error) {
-    console.log('[STORE_DELETE]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[STORE_DELETE]', error);
+    return NextResponse.json({
+      success: false,
+      message: error instanceof Error ? error.message : "Internal error"
+    }, { status: 500 });
   }
 }

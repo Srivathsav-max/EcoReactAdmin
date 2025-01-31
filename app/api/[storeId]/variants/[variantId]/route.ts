@@ -10,95 +10,108 @@ export async function PATCH(
     const session = await getAdminSession();
 
     if (!session) {
-      return NextResponse.json({
-        success: false,
-        message: "Unauthorized"
-      }, { status: 401 });
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
 
-    // Update variant
-    const updatedVariant = await prismadb.variant.update({
-      where: {
-        id: params.variantId
-      },
-      data: {
-        name: body.name,
-        sku: body.sku,
-        price: body.price,
-        costPrice: body.costPrice,
-        compareAtPrice: body.compareAtPrice,
-        colorId: body.colorId,
-        sizeId: body.sizeId,
-        isVisible: body.isVisible,
-        trackInventory: body.trackInventory,
-        minimumQuantity: body.minimumQuantity,
-        maximumQuantity: body.maximumQuantity,
-        weight: body.weight,
-        height: body.height,
-        width: body.width,
-        depth: body.depth,
-        allowBackorder: body.allowBackorder,
-      }
-    });
+    // Extract stock count and clean up the data
+    const { 
+      stockCount,
+      id,
+      productId,
+      createdAt,
+      updatedAt,
+      color,
+      size,
+      images,
+      product,
+      optionValues,
+      stockItems,
+      orderItems,
+      stockMovements,
+      ...variantData 
+    } = body;
 
-    // Update stock if provided
-    if (body.stockCount !== undefined) {
-      await prismadb.stockItem.upsert({
-        where: {
-          variantId_storeId: {
-            variantId: params.variantId,
-            storeId: params.storeId
+    try {
+      const updatedVariant = await prismadb.$transaction(async (tx) => {
+        // Update variant with cleaned data and type validation
+        const variant = await tx.variant.update({
+          where: { id: params.variantId },
+          data: {
+            name: String(variantData.name),
+            sku: String(variantData.sku),
+            price: Number(variantData.price),
+            costPrice: variantData.costPrice ? Number(variantData.costPrice) : null,
+            compareAtPrice: variantData.compareAtPrice ? Number(variantData.compareAtPrice) : null,
+            isVisible: Boolean(variantData.isVisible),
+            trackInventory: Boolean(variantData.trackInventory),
+            minimumQuantity: Number(variantData.minimumQuantity),
+            maximumQuantity: variantData.maximumQuantity ? Number(variantData.maximumQuantity) : null,
+            weight: variantData.weight ? Number(variantData.weight) : null,
+            height: variantData.height ? Number(variantData.height) : null,
+            width: variantData.width ? Number(variantData.width) : null,
+            depth: variantData.depth ? Number(variantData.depth) : null,
+            allowBackorder: Boolean(variantData.allowBackorder),
+            colorId: variantData.colorId || null,
+            sizeId: variantData.sizeId || null,
+            taxRate: variantData.taxRate ? String(variantData.taxRate) : "0",
+            position: variantData.position ? Number(variantData.position) : 0,
+            lowStockAlert: variantData.lowStockAlert ? Number(variantData.lowStockAlert) : null,
+            barcode: variantData.barcode || null,
+            dimensions: variantData.dimensions || null,
+            customFields: variantData.customFields || null,
+          },
+          include: {
+            stockItems: true,
+            color: true,
+            size: true,
+            images: true
           }
-        },
-        create: {
-          variantId: params.variantId,
-          storeId: params.storeId,
-          count: body.stockCount,
-          stockStatus: body.stockCount > 0 ? 'in_stock' : 'out_of_stock'
-        },
-        update: {
-          count: body.stockCount,
-          stockStatus: body.stockCount > 0 ? 'in_stock' : 'out_of_stock'
-        }
-      });
+        });
 
-      // Create stock movement record
-      await prismadb.stockMovement.create({
-        data: {
-          variantId: params.variantId,
-          stockItemId: (await prismadb.stockItem.findUnique({
+        // Handle stock update if provided
+        if (typeof stockCount === 'number') {
+          await tx.stockItem.upsert({
             where: {
               variantId_storeId: {
                 variantId: params.variantId,
                 storeId: params.storeId
               }
+            },
+            create: {
+              variantId: params.variantId,
+              storeId: params.storeId,
+              count: stockCount,
+              stockStatus: stockCount > 0 ? 'in_stock' : 'out_of_stock'
+            },
+            update: {
+              count: stockCount,
+              stockStatus: stockCount > 0 ? 'in_stock' : 'out_of_stock'
             }
-          }))!.id,
-          quantity: body.stockCount,
-          type: 'adjustment',
-          reason: 'Manual stock update'
+          });
         }
-      });
-    }
 
-    return NextResponse.json({
-      success: true,
-      data: updatedVariant
-    });
+        return variant;
+      });
+
+      return NextResponse.json({ success: true, data: updatedVariant });
+    } catch (error) {
+      console.error('[VARIANT_PATCH_TRANSACTION]', error);
+      return NextResponse.json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to update variant"
+      }, { status: 500 });
+    }
   } catch (error) {
     console.error('[VARIANT_PATCH]', error);
-    return NextResponse.json({
-      success: false,
-      message: "Internal error"
-    }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Internal error" }, { status: 500 });
   }
 }
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { variantId: string } }
+  { params }: { params: { storeId: string; variantId: string } }
 ) {
   try {
     const session = await getAdminSession();
