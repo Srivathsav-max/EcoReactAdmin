@@ -14,7 +14,10 @@ export async function POST(
     const domain = searchParams.get('domain');
 
     if (!email || !password || !domain) {
-      return new NextResponse("Missing credentials or domain", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Missing credentials or domain"
+      }, { status: 400 });
     }
 
     // Find store by domain
@@ -27,20 +30,29 @@ export async function POST(
     });
 
     if (!store) {
-      return new NextResponse("Store not found", { status: 404 });
+      return NextResponse.json({
+        success: false,
+        message: "Store not found"
+      }, { status: 404 });
     }
 
     // Find customer
     const customer = await getCustomerByEmail(email, store.id);
 
     if (!customer) {
-      return new NextResponse("Invalid credentials", { status: 401 });
+      return NextResponse.json({
+        success: false,
+        message: "Invalid credentials"
+      }, { status: 401 });
     }
 
     const isPasswordValid = await bcrypt.compare(password, customer.password);
 
     if (!isPasswordValid) {
-      return new NextResponse("Invalid credentials", { status: 401 });
+      return NextResponse.json({
+        success: false,
+        message: "Invalid credentials"
+      }, { status: 401 });
     }
 
     // Generate customer token
@@ -63,7 +75,8 @@ export async function POST(
     });
 
     return NextResponse.json({ 
-      customer: { 
+      success: true,
+      data: { 
         id: customer.id, 
         email: customer.email,
         name: customer.name,
@@ -72,7 +85,10 @@ export async function POST(
       } 
     });
   } catch (error) {
-    console.log('[CUSTOMER_SIGNIN]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[CUSTOMER_SIGNIN]', error);
+    return NextResponse.json({
+      success: false,
+      message: error instanceof Error ? error.message : "Internal error"
+    }, { status: 500 });
   }
 }

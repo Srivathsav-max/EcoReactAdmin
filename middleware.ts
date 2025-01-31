@@ -25,11 +25,13 @@ export async function middleware(request: NextRequest) {
                          hostname === 'admin.lvh.me:3000' ||
                          hostname === 'preview-ecoreact.vercel.app';
 
-    // Exclude static files and API routes
+    // Exclude static files, API routes, image proxy, and customer auth
     if (
       pathname.startsWith('/_next') || 
       pathname.startsWith('/static') || 
       pathname.startsWith('/api/auth') || 
+      pathname.startsWith('/api/auth/customer') || 
+      pathname.startsWith('/api/image-proxy') || 
       pathname.startsWith('/favicon.ico')
     ) {
       return NextResponse.next();

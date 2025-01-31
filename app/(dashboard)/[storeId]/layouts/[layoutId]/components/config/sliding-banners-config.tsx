@@ -38,12 +38,16 @@ export function SlidingBannersConfig({ form }: SlidingBannersConfigProps) {
 
   const banners = form.watch("config.banners") || [];
 
+  const generateUniqueId = () => {
+    return `banner-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  };
+
   const addBanner = () => {
     const currentBanners = form.watch("config.banners") || [];
     form.setValue("config.banners", [
       ...currentBanners,
       {
-        id: crypto.randomUUID(),
+        id: generateUniqueId(),
         label: "",
         imageUrl: "",
         link: ""

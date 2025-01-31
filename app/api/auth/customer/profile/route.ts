@@ -10,7 +10,10 @@ export async function GET(
     const domain = searchParams.get('domain');
 
     if (!domain) {
-      return new NextResponse("Domain is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Domain is required"
+      }, { status: 400 });
     }
 
     // Get store by domain
@@ -21,13 +24,26 @@ export async function GET(
     });
 
     if (!store) {
-      return new NextResponse("Store not found", { status: 404 });
+      return NextResponse.json({
+        success: false,
+        message: "Store not found"
+      }, { status: 404 });
     }
 
     const session = await getCustomerSession();
 
     if (!session) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized: Customer session not found"
+      }, { status: 401 });
+    }
+
+    if (!session.storeId || session.storeId !== store.id) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized: Invalid store access"
+      }, { status: 401 });
     }
 
     const customer = await prismadb.customer.findFirst({
@@ -50,22 +66,31 @@ export async function GET(
     });
 
     if (!customer) {
-      return new NextResponse("Customer not found", { status: 404 });
+      return NextResponse.json({
+        success: false,
+        message: "Customer not found"
+      }, { status: 404 });
     }
 
     // Format response
     return NextResponse.json({
-      ...customer,
-      address: customer.addresses[0]?.street || "",
-      city: customer.addresses[0]?.city || "",
-      state: customer.addresses[0]?.state || "",
-      postalCode: customer.addresses[0]?.postalCode || "",
-      country: customer.addresses[0]?.country || "",
+      success: true,
+      data: {
+        ...customer,
+        address: customer.addresses[0]?.street || "",
+        city: customer.addresses[0]?.city || "",
+        state: customer.addresses[0]?.state || "",
+        postalCode: customer.addresses[0]?.postalCode || "",
+        country: customer.addresses[0]?.country || "",
+      }
     });
 
   } catch (error) {
-    console.log('[CUSTOMER_PROFILE_GET]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[CUSTOMER_PROFILE_GET]', error);
+    return NextResponse.json({
+      success: false,
+      message: error instanceof Error ? error.message : "Internal error"
+    }, { status: 500 });
   }
 }
 
@@ -77,7 +102,10 @@ export async function PATCH(
     const domain = searchParams.get('domain');
 
     if (!domain) {
-      return new NextResponse("Domain is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Domain is required"
+      }, { status: 400 });
     }
 
     // Get store by domain
@@ -88,7 +116,10 @@ export async function PATCH(
     });
 
     if (!store) {
-      return new NextResponse("Store not found", { status: 404 });
+      return NextResponse.json({
+        success: false,
+        message: "Store not found"
+      }, { status: 404 });
     }
 
     const session = await getCustomerSession();
@@ -97,11 +128,24 @@ export async function PATCH(
     const { name, phone, address, city, state, postalCode, country } = body;
 
     if (!session) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized: Customer session not found"
+      }, { status: 401 });
     }
 
     if (!name) {
-      return new NextResponse("Name is required", { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Name is required"
+      }, { status: 400 });
+    }
+
+    if (!session.storeId || session.storeId !== store.id) {
+      return NextResponse.json({
+        success: false,
+        message: "Unauthorized: Invalid store access"
+      }, { status: 401 });
     }
 
     const customer = await prismadb.customer.update({
@@ -153,9 +197,15 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json(customer);
+    return NextResponse.json({
+      success: true,
+      data: customer
+    });
   } catch (error) {
-    console.log('[CUSTOMER_PROFILE_PATCH]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('[CUSTOMER_PROFILE_PATCH]', error);
+    return NextResponse.json({
+      success: false,
+      message: error instanceof Error ? error.message : "Internal error"
+    }, { status: 500 });
   }
 }
