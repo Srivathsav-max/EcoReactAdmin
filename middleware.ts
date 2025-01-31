@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import path from 'path';
 
 // List of public routes that don't require authentication
 const publicRoutes = ['/signin', '/signup'];
@@ -30,6 +31,7 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith('/_next') || 
       pathname.startsWith('/static') || 
       pathname.startsWith('/api/auth') || 
+      pathname.startsWith('/api/storefront') ||
       pathname.startsWith('/api/auth/customer') || 
       pathname.startsWith('/api/image-proxy') || 
       pathname.startsWith('/favicon.ico')

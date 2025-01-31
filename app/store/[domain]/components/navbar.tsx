@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useParams, useRouter } from "next/navigation";
 import { ShoppingBag, Moon, Sun, User, Store, ChevronDown, Search, ChevronRight } from "lucide-react";
 import { useTheme } from "next-themes";
+import useCart from "@/hooks/use-cart";
 
 import {
   DropdownMenu,
@@ -72,6 +73,7 @@ export const Navbar: React.FC<NavbarProps> = ({ taxonomies = [] }) => {
   const params = useParams();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const cart = useCart();
   const domain = params?.domain as string;
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -116,6 +118,13 @@ export const Navbar: React.FC<NavbarProps> = ({ taxonomies = [] }) => {
 
     return () => controller.abort();
   }, [domain, pathname, router]);
+
+  // Separate useEffect for cart fetching
+  useEffect(() => {
+    if (isAuthenticated && !cart.items.length) {
+      cart.fetchCart();
+    }
+  }, [isAuthenticated]); // Only depend on authentication state
 
   useEffect(() => {
     const handleScroll = () => {
@@ -188,7 +197,9 @@ export const Navbar: React.FC<NavbarProps> = ({ taxonomies = [] }) => {
               <Link href={`/store/${domain}/cart`}>
                 <Button variant="ghost" size="icon" className="hover:bg-accent relative">
                   <ShoppingBag className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-4 h-4 text-xs flex items-center justify-center">0</span>
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-4 h-4 text-xs flex items-center justify-center">
+                    {cart.items.length}
+                  </span>
                 </Button>
               </Link>
 

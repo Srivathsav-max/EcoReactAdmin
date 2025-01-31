@@ -56,13 +56,14 @@ export async function GET(
         name: true,
         email: true,
         phone: true,
+        storeId: true,
         addresses: {
           where: {
             isDefault: true,
           },
           take: 1,
         },
-      }
+      },
     });
 
     if (!customer) {
@@ -72,12 +73,15 @@ export async function GET(
       }, { status: 404 });
     }
 
+    console.log('Found customer:', customer); // Debug log
+    
     // Format response
     return NextResponse.json({
       success: true,
       data: {
         ...customer,
         address: customer.addresses[0]?.street || "",
+        storeId: customer.storeId,
         city: customer.addresses[0]?.city || "",
         state: customer.addresses[0]?.state || "",
         postalCode: customer.addresses[0]?.postalCode || "",
