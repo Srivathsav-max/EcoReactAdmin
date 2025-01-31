@@ -6,6 +6,7 @@ import path from 'path';
 const publicRoutes = ['/signin', '/signup'];
 const authRoutes = ['/signin', '/signup'];
 const apiAuthRoutes = ['/api/auth/signin', '/api/auth/signup'];
+const storefrontPublicRoutes = ['/api/storefront/[storeId]/auth', '/api/storefront/[storeId]/register'];
 
 // Check if a route is an admin dashboard route
 const isAdminDashboardRoute = (pathname: string): boolean => {
@@ -26,16 +27,30 @@ export async function middleware(request: NextRequest) {
                          hostname === 'admin.lvh.me:3000' ||
                          hostname === 'preview-ecoreact.vercel.app';
 
-    // Exclude static files, API routes, image proxy, and customer auth
+    // Exclude static files and image proxy
     if (
       pathname.startsWith('/_next') || 
       pathname.startsWith('/static') || 
       pathname.startsWith('/api/auth') || 
-      pathname.startsWith('/api/storefront') ||
-      pathname.startsWith('/api/auth/customer') || 
       pathname.startsWith('/api/image-proxy') || 
       pathname.startsWith('/favicon.ico')
     ) {
+      return NextResponse.next();
+    }
+
+    // Handle storefront routes
+    if (pathname.startsWith('/api/storefront')) {
+      // Allow public storefront routes
+      if (storefrontPublicRoutes.some(route => pathname.startsWith(route))) {
+        return NextResponse.next();
+      }
+
+      // Check customer auth for protected storefront routes
+      const customerToken = await request.cookies.get('customer_token')?.value;
+      if (!customerToken) {
+        return new NextResponse("Unauthorized", { status: 401 });
+      }
+
       return NextResponse.next();
     }
 
@@ -85,7 +100,9 @@ export async function middleware(request: NextRequest) {
     }
 
     // Check store authentication if accessing private store routes
-    const isStoreAuthRoute = pathname.startsWith('/profile') || pathname.startsWith('/orders');
+    const isStoreAuthRoute = pathname.startsWith('/profile') || 
+                            pathname.startsWith('/orders') ||
+                            pathname.startsWith('/checkout');
     if (isStoreAuthRoute) {
       const customerToken = await request.cookies.get('customer_token')?.value;
       if (!customerToken) {

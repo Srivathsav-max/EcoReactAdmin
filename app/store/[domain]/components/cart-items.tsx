@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useParams } from "next/navigation";
 import { Minus, Plus, X } from "lucide-react";
 
 import useCart from "@/hooks/use-cart";
@@ -20,6 +21,7 @@ const NoImagePlaceholder = () => (
 );
 
 const CartItems: React.FC<CartItemsProps> = ({ isPreview }) => {
+  const params = useParams();
   const cart = useCart();
 
   if (cart.isLoading) {
@@ -139,7 +141,7 @@ const CartItems: React.FC<CartItemsProps> = ({ isPreview }) => {
           <Button 
             className="w-full" 
             size="lg" 
-            onClick={() => window.location.href = '/checkout'}
+            onClick={() => window.location.href = `/store/${params.domain}/checkout`}
             disabled={cart.isLoading || cart.items.length === 0}
           >
             Proceed to Checkout

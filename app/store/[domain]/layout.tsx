@@ -2,6 +2,7 @@ import { Navbar } from "./components/navbar";
 import prismadb from "@/lib/prismadb";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "react-hot-toast";
+import { getStoreByDomain } from "@/actions/get-store-by-domain";
 
 export default async function StoreLayout({
   children,
@@ -10,6 +11,13 @@ export default async function StoreLayout({
   children: React.ReactNode;
   params: { domain: string };
 }) {
+  // Get store data
+  const store = await getStoreByDomain(params.domain);
+  
+  if (!store) {
+    return null;
+  }
+
   // Get taxonomies with their taxons for navigation
   const taxonomies = await prismadb.$queryRaw<Array<any>>`
     WITH RECURSIVE TaxonTree AS (
@@ -96,7 +104,13 @@ export default async function StoreLayout({
         disableTransitionOnChange
       >
         <Toaster />
-        <Navbar taxonomies={taxonomies} />
+        <Navbar 
+          taxonomies={taxonomies} 
+          store={{
+            name: store.name,
+            logoUrl: store.logoUrl
+          }}
+        />
         <main className="min-h-screen bg-background flex flex-col">
           {children}
         </main>

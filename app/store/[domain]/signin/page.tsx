@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { getStorePublicData } from "@/actions/get-store-by-domain";
+import { useRouter, useSearchParams } from "next/navigation";
+import { isCustomerAuthenticated } from "@/lib/client-auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -36,6 +38,7 @@ type SignInFormValues = z.infer<typeof formSchema>;
 
 export default function CustomerSignInPage({ params }: CustomerSignInPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
 
   const form = useForm<SignInFormValues>({
@@ -46,39 +49,41 @@ export default function CustomerSignInPage({ params }: CustomerSignInPageProps) 
     },
   });
 
+  // Check if user is already logged in using cookie
+  useEffect(() => {
+    if (isCustomerAuthenticated()) {
+      const redirect = searchParams.get('redirect');
+      router.replace(redirect || `/store/${params.domain}`);
+    }
+  }, [params.domain, router, searchParams]);
+
   const onSubmit = async (data: SignInFormValues) => {
     try {
       setLoading(true);
-      // Pass domain to identify the store
-      const response = await axios.post(`/api/auth/customer/signin?domain=${params.domain}`, data, {
-        withCredentials: true
-      });
-      
-      const { success, data: authData } = response.data as { success: boolean; data: { id: string; email: string; } };
-      if (success && authData) {
-        // Force re-fetch of auth state
-        const profileResponse = await fetch(`/api/auth/customer/profile?domain=${params.domain}`, {
-          credentials: 'include',
-          headers: {
-            'Cache-Control': 'no-cache'
-          }
-        });
-
-        if (!profileResponse.ok) {
-          throw new Error('Failed to verify login status');
-        }
-
-        const { success: profileSuccess } = await profileResponse.json();
-        if (profileSuccess) {
-          toast.success('Logged in successfully.');
-          router.refresh(); // Refresh server components
-          router.replace(`/store/${params.domain}`);
-        } else {
-          throw new Error('Failed to verify login status');
-        }
+      // Get store details
+      const store = await getStorePublicData(params.domain);
+      if (!store) {
+        throw new Error("Store not found");
       }
-    } catch (error) {
-      toast.error('Invalid credentials.');
+      
+      // Sign in with store ID
+      const response = await axios.post(`/api/storefront/${store.id}/auth`, data);
+      const { customer } = response.data;
+
+      if (customer) {
+        toast.success('Welcome back!');
+        router.refresh(); // Refresh server components
+
+        // Check for redirect parameter
+        const redirect = searchParams.get('redirect');
+        router.replace(redirect || `/store/${params.domain}`);
+      }
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        toast.error('Invalid credentials.');
+      } else {
+        toast.error('Something went wrong.');
+      }
     } finally {
       setLoading(false);
     }

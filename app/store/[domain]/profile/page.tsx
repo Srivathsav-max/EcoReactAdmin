@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { getCurrentCustomer } from "@/lib/get-customer";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -35,8 +36,10 @@ type ProfileFormValues = z.infer<typeof formSchema>;
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
   const params = useParams();
   const domain = params?.domain as string;
+  const storeId = params?.storeId as string;
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(formSchema),
@@ -55,42 +58,59 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchCustomer = async () => {
       try {
-        const response = await fetch(`/api/auth/customer/profile?domain=${domain}`, {
-          credentials: 'include',
-        });
+        // Get customer session data
+        const customer = await getCurrentCustomer(domain);
         
-        if (response.ok) {
-          const data = await response.json();
-          form.reset({
-            name: data.name,
-            email: data.email,
-            phone: data.phone || "",
-            address: data.address || "",
-            city: data.city || "",
-            state: data.state || "",
-            postalCode: data.postalCode || "",
-            country: data.country || "",
-          });
-        } else if (response.status === 401) {
+        if (!customer) {
           toast.error("Please sign in to access your profile");
-          // Handle redirection to signin page if needed
+          router.push(`/store/${domain}/signin?redirect=/store/${domain}/profile`);
+          return;
+        }
+
+        // Use storeId from customer session
+        const profileResponse = await fetch(`/api/storefront/${customer.storeId}/profile`, {
+          credentials: 'include'
+        });
+        if (profileResponse.ok) {
+          const data = await profileResponse.json();
+          if (data) {
+            form.reset({
+              name: data.name || "",
+              email: data.email || "",
+              phone: data.phone || "",
+              address: data.address || "",
+              city: data.city || "",
+              state: data.state || "",
+              postalCode: data.postalCode || "",
+              country: data.country || "",
+            });
+          }
+        } else if (profileResponse.status === 401) {
+          // Force clear auth state and redirect
+          document.cookie = "customer_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+          router.push(`/store/${domain}/signin?redirect=/store/${domain}/profile`);
         } else {
           throw new Error("Failed to load profile");
         }
       } catch (error) {
-        toast.error("Failed to load profile");
+        console.error("[PROFILE_LOAD_ERROR]", error);
+        if (error instanceof Error) {
+          toast.error(error.message || "Failed to load profile");
+        } else {
+          toast.error("Failed to load profile");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchCustomer();
-  }, [form, domain]);
+  }, [form, domain, storeId, router]);
 
   const onSubmit = async (data: ProfileFormValues) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/${domain}/customer/profile`, {
+      const response = await fetch(`/api/storefront/${storeId}/profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -113,137 +133,241 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
+        <div className="space-y-2">
+          <div className="h-8 w-64 bg-muted/60 animate-pulse rounded" />
+          <div className="h-4 w-96 bg-muted/60 animate-pulse rounded" />
+        </div>
+        <div className="bg-card rounded-lg border border-border shadow-sm p-6">
+          <div className="space-y-6">
+            <div>
+              <div className="h-6 w-48 bg-muted/60 animate-pulse rounded mb-4" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="h-4 w-24 bg-muted/60 animate-pulse rounded" />
+                    <div className="h-10 w-full bg-muted/60 animate-pulse rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="h-px w-full bg-muted/60 animate-pulse" />
+            <div>
+              <div className="h-6 w-48 bg-muted/60 animate-pulse rounded mb-4" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="col-span-2 space-y-2">
+                  <div className="h-4 w-32 bg-muted/60 animate-pulse rounded" />
+                  <div className="h-10 w-full bg-muted/60 animate-pulse rounded" />
+                </div>
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="h-4 w-24 bg-muted/60 animate-pulse rounded" />
+                    <div className="h-10 w-full bg-muted/60 animate-pulse rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end mt-8">
+            <div className="h-10 w-32 bg-muted/60 animate-pulse rounded" />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-8">
-      <div className="space-y-4">
-        <h1 className="text-3xl font-bold">Profile Settings</h1>
-        <p className="text-muted-foreground">
+    <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
+        <p className="text-muted-foreground text-sm md:text-base">
           Update your personal information and address details.
         </p>
       </div>
-      <Separator className="my-6" />
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input disabled={loading} placeholder="John Doe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input disabled type="email" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Email cannot be changed.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number</FormLabel>
-                  <FormControl>
-                    <Input disabled={loading} placeholder="(123) 456-7890" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Street Address</FormLabel>
-                  <FormControl>
-                    <Input disabled={loading} placeholder="123 Main St" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>City</FormLabel>
-                  <FormControl>
-                    <Input disabled={loading} placeholder="New York" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="state"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>State</FormLabel>
-                  <FormControl>
-                    <Input disabled={loading} placeholder="NY" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="postalCode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Postal Code</FormLabel>
-                  <FormControl>
-                    <Input disabled={loading} placeholder="10001" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="country"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Country</FormLabel>
-                  <FormControl>
-                    <Input disabled={loading} placeholder="United States" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <Button type="submit" disabled={loading}>
-            Save Changes
-          </Button>
-        </form>
-      </Form>
+      <div className="bg-card rounded-lg border border-border shadow-sm p-6">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-medium text-lg mb-4">Personal Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl>
+                          <Input 
+                            disabled={loading} 
+                            placeholder="John Doe" 
+                            className="bg-background"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input 
+                            disabled 
+                            type="email" 
+                            className="bg-muted"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Email cannot be changed.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input 
+                            disabled={loading} 
+                            placeholder="(123) 456-7890" 
+                            className="bg-background"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+              
+              <div>
+                <h3 className="font-medium text-lg mb-4">Address Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>Street Address</FormLabel>
+                        <FormControl>
+                          <Input 
+                            disabled={loading} 
+                            placeholder="123 Main St" 
+                            className="bg-background"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City</FormLabel>
+                        <FormControl>
+                          <Input 
+                            disabled={loading} 
+                            placeholder="New York" 
+                            className="bg-background"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State</FormLabel>
+                        <FormControl>
+                          <Input 
+                            disabled={loading} 
+                            placeholder="NY" 
+                            className="bg-background"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="postalCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Postal Code</FormLabel>
+                        <FormControl>
+                          <Input 
+                            disabled={loading} 
+                            placeholder="10001" 
+                            className="bg-background"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country</FormLabel>
+                        <FormControl>
+                          <Input 
+                            disabled={loading} 
+                            placeholder="United States" 
+                            className="bg-background"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button 
+                type="submit" 
+                disabled={loading}
+                className="w-full md:w-auto"
+              >
+                {loading ? (
+                  <>
+                    <span className="animate-spin mr-2">⭮</span>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }
