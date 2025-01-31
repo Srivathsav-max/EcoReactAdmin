@@ -14,6 +14,10 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb'
+    },
+    appDir: true, // Ensures App Router compatibility
+    packagerOptions: {
+      externalPackages: ["@prisma/client", "prisma"] // Exclude Prisma from being bundled incorrectly
     }
   },
   typescript: {
