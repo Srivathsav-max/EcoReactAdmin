@@ -249,6 +249,7 @@ export function Sidebar({ store }: { store: Store | null }) {
               "rounded-l-xl bg-primary/5 hover:bg-primary/10",
               "transition-colors border-y border-l border-accent/20"
             )}
+            aria-label="Toggle sidebar"
           >
             <Menu className="h-4 w-4" />
           </button>

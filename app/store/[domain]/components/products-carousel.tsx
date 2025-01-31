@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -27,12 +27,12 @@ export const ProductsCarousel: React.FC<ProductsCarouselProps> = ({
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
 
-  const onSelect = () => {
+  const onSelect = useCallback(() => {
     if (!emblaApi) return;
 
     setCanScrollPrev(emblaApi.canScrollPrev());
     setCanScrollNext(emblaApi.canScrollNext());
-  };
+  }, [emblaApi]);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -40,7 +40,7 @@ export const ProductsCarousel: React.FC<ProductsCarouselProps> = ({
     onSelect();
     emblaApi.on('select', onSelect);
     emblaApi.on('reInit', onSelect);
-  }, [emblaApi]);
+  }, [emblaApi, onSelect]);
 
   return (
     <div className="space-y-4 py-4">

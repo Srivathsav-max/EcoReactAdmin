@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import axios from "axios";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "react-hot-toast";
@@ -30,11 +31,15 @@ const ImagePreview = ({ src, alt, className }: {
   }
 
   return (
-    <img
-      src={src}
-      alt={alt || "Preview"}
-      className={cn("object-cover w-full h-full", className)}
-    />
+    <div className={cn("relative w-full h-full", className)}>
+      <Image
+        src={src}
+        alt={alt || "Preview"}
+        fill
+        className="object-cover"
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+      />
+    </div>
   );
 };
 
