@@ -192,8 +192,26 @@ export function useRouteItems() {
     {
       label: "Settings",
       icon: Settings,
-      href: `/${params.storeId}/settings`,
-      active: pathname === `/${params.storeId}/settings`,
+      items: [
+        {
+          label: "General Settings",
+          href: `/${params.storeId}/settings`,
+          active: pathname === `/${params.storeId}/settings`,
+          icon: <Settings className="h-4 w-4" />
+        },
+        {
+          label: "Staff Management",
+          href: `/${params.storeId}/staff`,
+          active: pathname === `/${params.storeId}/staff`,
+          icon: <Users className="h-4 w-4" />
+        },
+        {
+          label: "Roles & Permissions",
+          href: `/${params.storeId}/roles`,
+          active: pathname === `/${params.storeId}/roles`,
+          icon: <Users className="h-4 w-4" />
+        }
+      ]
     },
   ];
 

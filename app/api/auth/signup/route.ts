@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserByEmail, createUser } from "@/lib/auth";
+import { createUser, generateAdminToken } from "@/lib/auth";
 import prismadb from "@/lib/prismadb";
 
 export async function POST(
@@ -7,48 +7,63 @@ export async function POST(
 ) {
   try {
     const body = await req.json();
-    const { name, email, password } = body;
+    const { email, password, name } = body;
 
-    if (!email || !name || !password) {
+    if (!email || !password || !name) {
       return new NextResponse("Missing required fields", { status: 400 });
     }
 
-    // Check if user exists
-    const existingUser = await getUserByEmail(email);
-    
-    if (existingUser) {
-      return new NextResponse("Email already exists", { status: 400 });
+    // Create the user
+    const user = await createUser(email, password, name);
+
+    // Get super admin role
+    const superAdminRole = await prismadb.role.findFirst({
+      where: { name: "Super Admin" } // This name matches DefaultRoles.SUPER_ADMIN.name
+    });
+
+    if (!superAdminRole) {
+      return new NextResponse("System not properly initialized", { status: 500 });
     }
 
-    // Create user
-    const user = await createUser(email, password);
-
-    // Create default store for the user
+    // Create a default store for the user
     const store = await prismadb.store.create({
       data: {
         name: `${name}'s Store`,
         userId: user.id,
-        currency: process.env.DEFAULT_STORE_CURRENCY || 'USD',
-        locale: process.env.DEFAULT_STORE_LOCALE || 'en-US',
-        domain: `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`
       }
     });
 
-    // Update user name
-    await prismadb.user.update({
-      where: { id: user.id },
-      data: { name }
-    });
-
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name
+    // Assign super admin role to user for this store
+    await prismadb.roleAssignment.create({
+      data: {
+        userId: user.id,
+        roleId: superAdminRole.id,
+        storeId: store.id,
       }
     });
+
+    // Generate admin token
+    const token = generateAdminToken(user);
+
+    // Create response with cookie
+    const response = NextResponse.json({ success: true });
+    
+    response.cookies.set({
+      name: 'admin_token',
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    });
+
+    return response;
   } catch (error) {
-    console.log('[SIGNUP]', error);
+    console.error('[SIGNUP]', error);
+    if ((error as any).code === 'P2002') {
+      return new NextResponse("Email already exists", { status: 400 });
+    }
     return new NextResponse("Internal error", { status: 500 });
   }
 }
