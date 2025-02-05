@@ -25,6 +25,8 @@ model Store {
   attributeValues AttributeValue[] @relation("StoreToAttributeValue")
   optionTypes     OptionType[]     @relation("StoreToOptionType")
   homeLayouts     HomeLayout[]     @relation("StoreToHomeLayout")
+  roleAssignments RoleAssignment[] @relation("StoreToRoleAssignment")
+  staffInvitations StaffInvitation[] @relation("StoreToStaffInvitation")
 
   @@index([userId])
 }
